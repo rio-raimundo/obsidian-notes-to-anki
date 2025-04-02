@@ -1,6 +1,7 @@
 import { MarkdownView, Notice, Plugin, TFile } from 'obsidian';
 import { AnkiSyncSettings, DEFAULT_SETTINGS, AnkiSyncSettingTab } from './settings';
 import { logWithTag } from './auxilliary';
+import { MarkdownRenderer } from 'obsidian'; // Use Obsidian's renderer
 
 
 // Helper function to make AnkiConnect requests
@@ -69,6 +70,98 @@ export default class AnkiSyncPlugin extends Plugin {
                 return false;
             }
         });
+
+        this.addCommand({
+            id: 'sync-notes-by-tag',
+            name: 'Sync Notes by Include/Exclude Tags',
+            callback: async () => {
+                new Notice('Starting sync based on tags...');
+    
+                // 1. Get include/exclude tags from settings (provide defaults)
+                //    Tags in settings should NOT have the leading '#'
+                const includeTags = this.settings.tagsToInclude?.map(t => t.toLowerCase()) ?? [];
+                const excludeTags = this.settings.tagsToExclude?.map(t => t.toLowerCase()) ?? [];
+    
+                console.log("Include Tags:", includeTags);
+                console.log("Exclude Tags:", excludeTags);
+    
+                // 2. Get all markdown files in the vault
+                const allMarkdownFiles = this.app.vault.getMarkdownFiles();
+                const filesToSync: TFile[] = [];
+    
+                // 3. Filter files based on tags
+                for (const file of allMarkdownFiles) {
+                    const fileCache = this.app.metadataCache.getFileCache(file);
+                    const frontmatter = fileCache?.frontmatter || {};
+
+                    // Get tags from metadata, remove leading '#', convert to lowercase
+                    // const getTags = (cache) => {}
+                    const noteTags = fileCache?.tags?.map(t => t.tag.substring(1).toLowerCase()) ?? [];
+                    const frontmatterTags = (frontmatter?.tags as string[])?.map(t => t.toLowerCase()) ?? [];
+                    const allTags = [...noteTags, ...frontmatterTags];
+    
+                    // Skip if no tags found in the note when filtering is needed
+                    if (!allTags.length && (includeTags.length > 0 || excludeTags.length > 0)) {
+                        continue;
+                    }
+    
+                    // Check for exclusion criteria FIRST (more efficient)
+                    let isExcluded = false;
+                    if (excludeTags.length > 0) {
+                        isExcluded = allTags.some(noteTag => excludeTags.includes(noteTag));
+                    }
+    
+                    if (isExcluded) {
+                        // console.log(`Excluding ${file.path} due to tags: ${noteTags.join(', ')}`);
+                        continue; // Skip this file
+                    }
+    
+                    // Check for inclusion criteria
+                    let isIncluded = false;
+                    if (includeTags.length === 0) {
+                        // If no includeTags are specified, all non-excluded notes are included
+                        isIncluded = true;
+                    } else {
+                        // Must have at least one of the includeTags
+                        isIncluded = allTags.some(noteTag => includeTags.includes(noteTag));
+                    }
+    
+                    if (isIncluded) {
+                        // console.log(`Including ${file.path} with tags: ${noteTags.join(', ')}`);
+                        filesToSync.push(file);
+                    }
+                }
+    
+                // 4. Perform the "Sync" Action on the filtered files
+                if (filesToSync.length === 0) {
+                    new Notice('Sync complete. No notes matched the tag criteria.');
+                    return;
+                }
+    
+                new Notice(`Found ${filesToSync.length} notes to sync. Starting process...`);
+                console.log(`Files to sync (${filesToSync.length}):`, filesToSync.map(f => f.path));
+    
+                // --- !! YOUR SYNC LOGIC GOES HERE !! ---
+                // Iterate through filesToSync and do what you need.
+                // This is just a placeholder example:
+                let syncCounter = 0;
+                for (const file of filesToSync) {
+                    try {
+                        await this.syncNoteToAnki(file);
+                        syncCounter++;
+
+                    } catch (error) {
+                        console.error(`Error syncing file ${file.path}:`, error);
+                        new Notice(`Error syncing file: ${file.name}. Check console.`);
+                    }
+                }
+                // --- End of Sync Logic ---
+    
+                new Notice(`Sync complete. Processed ${syncCounter} notes.`);
+                logWithTag(`Sync complete. Processed ${syncCounter} notes.`);
+            } // End of callback
+        }); // End of addCommand
+    
     }
 
     async findAnkiDeck(deckName: string, createIfNotFound: boolean) {
@@ -127,7 +220,7 @@ export default class AnkiSyncPlugin extends Plugin {
             const guid = frontmatter[this.settings.obsidianGuidProperty];
 
             // 2. Extract Summary Callout
-            const summary = this.extractSummaryCallout(fileContent, this.settings.summaryCalloutLable);
+            const summary = this.extractCallout(fileContent, this.settings.summaryCalloutLable);
             if (!summary) {
                 new Notice(`Warning: No [!${this.settings.summaryCalloutLable}] callout found in "${file.basename}". Using empty summary.`);
             }
@@ -152,21 +245,6 @@ export default class AnkiSyncPlugin extends Plugin {
 
             // Add GUID field (mandatory)
             ankiFields[this.settings.ankiGuidField] = guid;
-
-            // Add Obsidian Link (optional but good)
-            const obsidianLink = `obsidian://open?vault=${encodeURIComponent(this.app.vault.getName())}&file=${encodeURIComponent(file.path)}`;
-            // Assuming you have an 'ObsidianLink' field in your Anki Note Type
-            if (!this.settings.fieldMappings.hasOwnProperty('obsidianLink')) { // Check if a mapping exists
-                 ankiFields['ObsidianLink'] = obsidianLink; // Or use a configurable field name
-            } else {
-                 ankiFields[this.settings.fieldMappings['obsidianLink']] = obsidianLink;
-            }
-
-
-            // Add Default Front field if not mapped
-            if (!ankiFields['Front'] && !this.settings.fieldMappings.hasOwnProperty('front')) { // Check if 'Front' is explicitly mapped
-                 ankiFields['Front'] = file.basename; // Default Front to note title
-            }
 
 
             // 4. Check if Anki Note Exists (using GUID)
@@ -211,10 +289,7 @@ export default class AnkiSyncPlugin extends Plugin {
 
     // --- Helper Functions ---
 
-    extractSummaryCallout(content: string, label: string): string | null {
-        // Regex to find the specific callout and capture its content
-        // Handles multiline content within the callout
-        console.log('trying to handle summary callout')
+    extractCallout(content: string, label: string): string | null {
         const calloutRegex = new RegExp(`^> \\[!${label}\\](?:[^\r\n]*)?\r?\n((?:>.*\r?\n?)*)`, 'im');
         const match = content.match(calloutRegex);
 

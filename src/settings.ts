@@ -12,6 +12,9 @@ export interface AnkiSyncSettings {
 	obsidianGuidProperty: string; // Name of the property in Obsidian frontmatter
 	summaryCalloutLable: string; // e.g., "summary" for [!summary]
 	fieldMappings: { [obsidianProperty: string]: string }; // Maps Obsidian property keys to Anki field names
+    callouts: string[];
+    tagsToInclude: string[];
+    tagsToExclude: string[];
 }
 
 export const DEFAULT_SETTINGS: AnkiSyncSettings = {
@@ -30,7 +33,10 @@ export const DEFAULT_SETTINGS: AnkiSyncSettings = {
 		// Add more mappings as needed
 		// Special mapping for the summary callout
 		'summaryCallout': 'Back' // Map the extracted summary to the 'Back' field
-	}
+	},
+    callouts: ['summary'],
+    tagsToInclude: [],
+    tagsToExclude: []
 }
 
 // --- Settings Tab ---
@@ -153,6 +159,210 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                  text.inputEl.rows = 8;
                  text.inputEl.cols = 50;
              });
+            
+            new Setting(containerEl)
+            .setName('Callouts to copy')
+            .setDesc('Add callouts to copy from Obsidian to Anki, separated by enter.')
+            .then((setting) => {
+                // Use controlEl for custom HTML structure
+                const controlEl = setting.controlEl;
+                controlEl.addClass('tag-input-container'); // For potential CSS targeting
+
+                // Div to hold the visible tags
+                const tagsDiv = controlEl.createDiv({ cls: 'tags-display' });
+
+                // Input field for the next tag
+                const inputEl = controlEl.createEl('input', { type: 'text', placeholder: 'Add option...' });
+                inputEl.addClass('tag-input-field');
+
+                // --- Helper function to render tags ---
+                const renderTags = () => {
+                    tagsDiv.empty(); // Clear existing tags
+                    this.plugin.settings.callouts.forEach((tagText, index) => {
+                        const tagEl = tagsDiv.createSpan({ cls: 'tag-item' });
+                        tagEl.setText(tagText);
+                        const removeBtn = tagEl.createSpan({ cls: 'tag-remove', text: '✖' }); // Simple 'x'
+
+                        removeBtn.addEventListener('click', async () => {
+                            this.plugin.settings.callouts.splice(index, 1); // Remove from array
+                            await this.plugin.saveSettings();
+                            renderTags(); // Re-render the tags UI
+                        });
+                    });
+                    // Ensure input is always after tags
+                    controlEl.appendChild(inputEl);
+                    inputEl.focus(); // Optional: Keep focus on input
+                };
+
+                // --- Event listener for adding tags ---
+                inputEl.addEventListener('keydown', async (event) => {
+                    // Add tag on Enter or Comma, prevent default for these keys if adding
+                    if (event.key === 'Enter') {
+                        event.preventDefault(); // Prevent form submission or comma in input
+                        const newTag = inputEl.value.trim();
+                        inputEl.value = ''; // Clear input immediately
+
+                        if (newTag && !this.plugin.settings.callouts.includes(newTag)) {
+                            this.plugin.settings.callouts.push(newTag);
+                            await this.plugin.saveSettings();
+                            renderTags(); // Add the new tag visually
+                        }
+                    }
+                });
+                // Optional: Add tag on blur (losing focus)
+                inputEl.addEventListener('blur', async () => {
+                    // Set timeout allows click on remove button to register before blur potentially adds tag
+                    setTimeout(async () => {
+                        const newTag = inputEl.value.trim();
+                        inputEl.value = ''; // Clear input
+
+                        if (newTag && !this.plugin.settings.callouts.includes(newTag)) {
+                            this.plugin.settings.callouts.push(newTag);
+                            await this.plugin.saveSettings();
+                            renderTags();
+                        }
+                    }, 100); // Small delay
+                });
+
+                // --- Initial rendering ---
+                renderTags();
+            });
+
+            new Setting(containerEl)
+            .setName('Tags to include')
+            .setDesc('Tags which should be included when generating notes.')
+            .then((setting) => {
+                // Use controlEl for custom HTML structure
+                const controlEl = setting.controlEl;
+                controlEl.addClass('tag-input-container'); // For potential CSS targeting
+
+                // Div to hold the visible tags
+                const tagsDiv = controlEl.createDiv({ cls: 'tags-display' });
+
+                // Input field for the next tag
+                const inputEl = controlEl.createEl('input', { type: 'text', placeholder: 'Add option...' });
+                inputEl.addClass('tag-input-field');
+
+                // --- Helper function to render tags ---
+                const renderTags = () => {
+                    tagsDiv.empty(); // Clear existing tags
+                    this.plugin.settings.tagsToInclude.forEach((tagText, index) => {
+                        const tagEl = tagsDiv.createSpan({ cls: 'tag-item' });
+                        tagEl.setText(tagText);
+                        const removeBtn = tagEl.createSpan({ cls: 'tag-remove', text: '✖' }); // Simple 'x'
+
+                        removeBtn.addEventListener('click', async () => {
+                            this.plugin.settings.tagsToInclude.splice(index, 1); // Remove from array
+                            await this.plugin.saveSettings();
+                            renderTags(); // Re-render the tags UI
+                        });
+                    });
+                    // Ensure input is always after tags
+                    controlEl.appendChild(inputEl);
+                    inputEl.focus(); // Optional: Keep focus on input
+                };
+
+                // --- Event listener for adding tags ---
+                inputEl.addEventListener('keydown', async (event) => {
+                    // Add tag on Enter or Comma, prevent default for these keys if adding
+                    if (event.key === 'Enter') {
+                        event.preventDefault(); // Prevent form submission or comma in input
+                        const newTag = inputEl.value.trim();
+                        inputEl.value = ''; // Clear input immediately
+
+                        if (newTag && !this.plugin.settings.tagsToInclude.includes(newTag)) {
+                            this.plugin.settings.tagsToInclude.push(newTag);
+                            await this.plugin.saveSettings();
+                            renderTags(); // Add the new tag visually
+                        }
+                    }
+                });
+                // Optional: Add tag on blur (losing focus)
+                inputEl.addEventListener('blur', async () => {
+                    // Set timeout allows click on remove button to register before blur potentially adds tag
+                    setTimeout(async () => {
+                        const newTag = inputEl.value.trim();
+                        inputEl.value = ''; // Clear input
+
+                        if (newTag && !this.plugin.settings.tagsToInclude.includes(newTag)) {
+                            this.plugin.settings.tagsToInclude.push(newTag);
+                            await this.plugin.saveSettings();
+                            renderTags();
+                        }
+                    }, 100); // Small delay
+                });
+
+                // --- Initial rendering ---
+                renderTags();
+            });
+
+            new Setting(containerEl)
+            .setName('Tags to exclude')
+            .setDesc('Tags which should be excluded when syncing notes.')
+            .then((setting) => {
+                // Use controlEl for custom HTML structure
+                const controlEl = setting.controlEl;
+                controlEl.addClass('tag-input-container'); // For potential CSS targeting
+
+                // Div to hold the visible tags
+                const tagsDiv = controlEl.createDiv({ cls: 'tags-display' });
+
+                // Input field for the next tag
+                const inputEl = controlEl.createEl('input', { type: 'text', placeholder: 'Add option...' });
+                inputEl.addClass('tag-input-field');
+
+                // --- Helper function to render tags ---
+                const renderTags = () => {
+                    tagsDiv.empty(); // Clear existing tags
+                    this.plugin.settings.tagsToExclude.forEach((tagText, index) => {
+                        const tagEl = tagsDiv.createSpan({ cls: 'tag-item' });
+                        tagEl.setText(tagText);
+                        const removeBtn = tagEl.createSpan({ cls: 'tag-remove', text: '✖' }); // Simple 'x'
+
+                        removeBtn.addEventListener('click', async () => {
+                            this.plugin.settings.tagsToExclude.splice(index, 1); // Remove from array
+                            await this.plugin.saveSettings();
+                            renderTags(); // Re-render the tags UI
+                        });
+                    });
+                    // Ensure input is always after tags
+                    controlEl.appendChild(inputEl);
+                    inputEl.focus(); // Optional: Keep focus on input
+                };
+
+                // --- Event listener for adding tags ---
+                inputEl.addEventListener('keydown', async (event) => {
+                    // Add tag on Enter or Comma, prevent default for these keys if adding
+                    if (event.key === 'Enter') {
+                        event.preventDefault(); // Prevent form submission or comma in input
+                        const newTag = inputEl.value.trim();
+                        inputEl.value = ''; // Clear input immediately
+
+                        if (newTag && !this.plugin.settings.tagsToExclude.includes(newTag)) {
+                            this.plugin.settings.tagsToExclude.push(newTag);
+                            await this.plugin.saveSettings();
+                            renderTags(); // Add the new tag visually
+                        }
+                    }
+                });
+                // Optional: Add tag on blur (losing focus)
+                inputEl.addEventListener('blur', async () => {
+                    // Set timeout allows click on remove button to register before blur potentially adds tag
+                    setTimeout(async () => {
+                        const newTag = inputEl.value.trim();
+                        inputEl.value = ''; // Clear input
+
+                        if (newTag && !this.plugin.settings.tagsToExclude.includes(newTag)) {
+                            this.plugin.settings.tagsToExclude.push(newTag);
+                            await this.plugin.saveSettings();
+                            renderTags();
+                        }
+                    }, 100); // Small delay
+                });
+
+                // --- Initial rendering ---
+                renderTags();
+            });
 
     }
 }
