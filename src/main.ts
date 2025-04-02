@@ -308,7 +308,6 @@ export default class AnkiSyncPlugin extends Plugin {
 
             let plainText = tempDiv.textContent || '';
             plainText = plainText.trim().split('\n').map(line => `- ${line.trim()}<br>`).join('\n');
-            console.log(plainText);
             return plainText;
         }
         return null;
