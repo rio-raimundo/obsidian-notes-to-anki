@@ -288,16 +288,28 @@ export default class AnkiSyncPlugin extends Plugin {
     }
 
     // --- Helper Functions ---
-
     extractCallout(content: string, label: string): string | null {
         const calloutRegex = new RegExp(`^> \\[!${label}\\](?:[^\r\n]*)?\r?\n((?:>.*\r?\n?)*)`, 'im');
         const match = content.match(calloutRegex);
 
         if (match && match[1]) {
             // Remove the leading '> ' from each line of the captured content
-            return match[1].split(/\r?\n/)
-                .map(line => line.replace(/^>\s?/, ''))
-                .join('\n').trim();
+            const text = match[1];
+            
+            // Convert text to markdown
+            const tempDiv = document.createElement('div');
+            MarkdownRenderer.render(
+                this.app,
+                text,
+                tempDiv,
+                '/', // Or the original file path if needed for context
+                this   // Pass 'this' if called from within your plugin class
+            );
+
+            let plainText = tempDiv.textContent || '';
+            plainText = plainText.trim().split('\n').map(line => `- ${line.trim()}<br>`).join('\n');
+            console.log(plainText);
+            return plainText;
         }
         return null;
     }
