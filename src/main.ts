@@ -218,22 +218,22 @@ export default class AnkiSyncPlugin extends Plugin {
 
             // 1. Get unique ID
             const guid = frontmatter[this.settings.obsidianGuidProperty];
-
-            // 2. Extract Summary Callout
-            const summary = this.extractCallout(fileContent, this.settings.summaryCalloutLable);
-            if (!summary) {
-                new Notice(`Warning: No [!${this.settings.summaryCalloutLable}] callout found in "${file.basename}". Using empty summary.`);
-            }
-
-            // 3. Prepare Anki Note Fields
+            
+            // 2. Prepare Anki Note Fields
             const ankiFields: { [key: string]: string } = {};
+            ankiFields[this.settings.ankiGuidField] = guid;
+
+            // 3. Extract Summary Callout
+            this.settings.callouts.forEach((callout) => {
+                const extractedCallout = this.extractCallout(fileContent, callout);
+                if (!extractedCallout) { new Notice(`Warning: No [!${callout}] callout found in "${file.basename}".`); }
+                ankiFields[callout] = extractedCallout || '';
+            })
 
             // Map properties based on settings
             for (const obsProp in this.settings.fieldMappings) {
                 const ankiField = this.settings.fieldMappings[obsProp];
-                if (obsProp === 'summaryCallout') {
-                    ankiFields[ankiField] = summary || ''; // Assign extracted summary
-                } else if (frontmatter[obsProp]) {
+                if (frontmatter[obsProp]) {
                     // Handle potential arrays (like authors, tags)
                     ankiFields[ankiField] = Array.isArray(frontmatter[obsProp])
                         ? frontmatter[obsProp].join(', ') // Join arrays with comma
@@ -242,10 +242,6 @@ export default class AnkiSyncPlugin extends Plugin {
                     ankiFields[ankiField] = ''; // Default to empty if property doesn't exist
                 }
             }
-
-            // Add GUID field (mandatory)
-            ankiFields[this.settings.ankiGuidField] = guid;
-
 
             // 4. Check if Anki Note Exists (using GUID)
             const findNotesResult = await ankiRequest<number[]>(this.settings.ankiConnectUrl, 'findNotes', {
@@ -306,8 +302,7 @@ export default class AnkiSyncPlugin extends Plugin {
                 this   // Pass 'this' if called from within your plugin class
             );
 
-            let plainText = tempDiv.textContent || '';
-            plainText = plainText.trim().split('\n').map(line => `- ${line.trim()}<br>`).join('\n');
+            const plainText = tempDiv.innerHTML;
             return plainText;
         }
         return null;
