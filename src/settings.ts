@@ -59,8 +59,8 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                 }));
 
         new Setting(containerEl)
-            .setName('Default Anki Deck')
-            .setDesc('The default deck to add new notes to.')
+            .setName('Anki deck name')
+            .setDesc('The name of the anki deck to add notes to.')
             .addText(text => text
                 .setPlaceholder('Academic Articles')
                 .setValue(this.plugin.settings.defaultDeck)
@@ -74,8 +74,17 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
             .setDesc('If true, will automatically create a deck if it does not exist.')
             .addToggle(text => text
 				.setValue(this.plugin.settings.createDeckIfNotFound)
-				.onClick()
-			);
+				.onChange(async (value) => {
+					this.plugin.settings.createDeckIfNotFound = value;
+					await this.plugin.saveSettings();
+					}))
+			.addExtraButton(button => button
+				.setIcon('refresh-cw')
+				.setTooltip('Attempt to find deck again.')
+				.onClick(async () => {
+					await this.plugin.findAnkiDeck(this.plugin.settings.defaultDeck, this.plugin.settings.createDeckIfNotFound);
+				}));
+
 
         new Setting(containerEl)
             .setName('Anki Note Type Name')
@@ -98,8 +107,8 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                     this.plugin.settings.ankiGuidField = value || DEFAULT_SETTINGS.ankiGuidField;
                     await this.plugin.saveSettings();
                 }));
-
-        new Setting(containerEl)
+			
+		new Setting(containerEl)
             .setName('Obsidian GUID Property Name')
             .setDesc('The name of the property in Obsidian frontmatter used to store the Anki GUID.')
             .addText(text => text
