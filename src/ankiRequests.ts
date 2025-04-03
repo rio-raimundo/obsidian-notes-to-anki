@@ -122,7 +122,9 @@ export class AnkiRequests{
             if (modelExists) {
                 // Model exists - Check if fields need modification
                 const currentFields = await this.ankiRequest<string[]>('modelFieldNames', { modelName: modelName });
-                if (this.areFieldArraysEqual(currentFields, fieldNames)) { return; }
+
+                // If everything is the same, log and return
+                if (this.areFieldArraysEqual(currentFields, fieldNames)) { logWithTag(`Anki sync: Anki Note Type "${modelName}" with correct fields found.`, false); return; }
                 
                 // Remove fields not in desired list (iterate backwards to avoid index issues)
                 const desiredFields = new Set(fieldNames);
@@ -133,39 +135,34 @@ export class AnkiRequests{
                     }
                 }
 
-                if (!this.areFieldArraysEqual(currentFields, fieldNames)) {
-                    // Fields differ, update them using updateModelFields (preserves cards)
-                    for (let i = 0; i < fieldNames.length; i++) {
-                        const desiredFieldName = fieldNames[i];
-                        const currentFieldIndex = currentFields.indexOf(desiredFieldName);
-        
-                        if (currentFieldIndex === -1) {
-                            // Field needs to be added
-                            await this.ankiRequest<void>('modelFieldAdd', {
-                                modelName: modelName,
-                                fieldName: desiredFieldName,
-                                index: i // Add at the correct position
-                            });
-                            // Add to our temporary list to track state for repositioning
-                            currentFields.splice(i, 0, desiredFieldName);
-                        } else if (currentFieldIndex !== i) {
-                            // Field exists but needs repositioning
-                            await this.ankiRequest<void>('modelFieldReposition', {
-                                modelName: modelName,
-                                fieldName: desiredFieldName,
-                                index: i
-                            });
-                            // Update our temporary list to reflect the move
-                            const [movedField] = currentFields.splice(currentFieldIndex, 1);
-                            currentFields.splice(i, 0, movedField);
-                        }
+                // Add or reposition fields
+                for (let i = 0; i < fieldNames.length; i++) {
+                    const desiredFieldName = fieldNames[i];
+                    const currentFieldIndex = currentFields.indexOf(desiredFieldName);
+    
+                    if (currentFieldIndex === -1) {
+                        // Field needs to be added
+                        await this.ankiRequest<void>('modelFieldAdd', {
+                            modelName: modelName,
+                            fieldName: desiredFieldName,
+                            index: i // Add at the correct position
+                        });
+                        // Add to our temporary list to track state for repositioning
+                        currentFields.splice(i, 0, desiredFieldName);
+                    } else if (currentFieldIndex !== i) {
+                        // Field exists but needs repositioning
+                        await this.ankiRequest<void>('modelFieldReposition', {
+                            modelName: modelName,
+                            fieldName: desiredFieldName,
+                            index: i
+                        });
+                        // Update our temporary list to reflect the move
+                        const [movedField] = currentFields.splice(currentFieldIndex, 1);
+                        currentFields.splice(i, 0, movedField);
                     }
-                    logWithTag(`Model "${modelName}" fields updated.`);
-                    return;
-                } else {
-                    // Fields are already correct
-                    return;
                 }
+                logWithTag(`Model "${modelName}" fields updated.`);
+                return;
 
             } else {
                 // 2b. Model does not exist - Create it
