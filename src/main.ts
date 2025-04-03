@@ -4,9 +4,6 @@ import { logWithTag } from './auxilliary';
 import { MarkdownRenderer } from 'obsidian'; // Use Obsidian's renderer
 import { AnkiRequests } from './ankiRequests';
 
-
-
-
 export default class AnkiSyncPlugin extends Plugin {
     settings: AnkiSyncSettings;
     requests: AnkiRequests;
@@ -16,8 +13,8 @@ export default class AnkiSyncPlugin extends Plugin {
 
     async onload() {
         await this.loadSettings();
-		this.addSettingTab(new AnkiSyncSettingTab(this.app, this));
         this.requests = new AnkiRequests(this);
+		this.addSettingTab(new AnkiSyncSettingTab(this, this.requests));
         this.addAllCommands();
 
         // Check if anki deck exists; create if it does now
@@ -58,8 +55,6 @@ export default class AnkiSyncPlugin extends Plugin {
 
     // --- Core Sync Logic ---
     async syncNoteToAnki(file: TFile) {
-        new Notice(`Syncing "${file.basename}" to Anki...`);
-
         try {
             const fileContent = await this.app.vault.read(file);
             const fileCache = this.app.metadataCache.getFileCache(file);
@@ -72,7 +67,7 @@ export default class AnkiSyncPlugin extends Plugin {
             const ankiFields: { [key: string]: string } = {};
             ankiFields[this.settings.ankiGuidField] = guid;
 
-            // 3. Extract Summary Callout
+            // Extract contents of callouts as .HTML
             this.settings.callouts.forEach((callout) => {
                 const extractedCallout = this.extractCallout(fileContent, callout);
                 if (!extractedCallout) { new Notice(`Warning: No [!${callout}] callout found in "${file.basename}".`); }

@@ -1,4 +1,5 @@
-import { PluginSettingTab, App, Setting, Notice } from "obsidian";
+import { PluginSettingTab, Setting, Notice } from "obsidian";
+import { AnkiRequests } from "./ankiRequests";
 
 import AnkiSyncPlugin from "./main";
 
@@ -10,7 +11,6 @@ export interface AnkiSyncSettings {
 	noteTypeName: string;
 	ankiGuidField: string; // Name of the GUID field in Anki Note Type
 	obsidianGuidProperty: string; // Name of the property in Obsidian frontmatter
-	summaryCalloutLable: string; // e.g., "summary" for [!summary]
 	fieldMappings: { [obsidianProperty: string]: string }; // Maps Obsidian property keys to Anki field names
     callouts: string[];
     tagsToInclude: string[];
@@ -24,15 +24,11 @@ export const DEFAULT_SETTINGS: AnkiSyncSettings = {
 	noteTypeName: 'obsidian-articles', // Matches the Anki Note Type name
 	ankiGuidField: 'GUID',           // Matches the Anki field name for the GUID
 	obsidianGuidProperty: 'citation key', // Matches the Obsidian property name
-	summaryCalloutLable: 'summary',
 	fieldMappings: {
 		'title': 'Title', // Obsidian property 'title' maps to Anki field 'Title'
 		'authors': 'Authors',
 		'journal': 'Journal',
-		'year': 'Year',
-		// Add more mappings as needed
-		// Special mapping for the summary callout
-		'summaryCallout': 'Back' // Map the extracted summary to the 'Back' field
+		'year': 'Year'
 	},
     callouts: ['summary'],
     tagsToInclude: [],
@@ -42,10 +38,12 @@ export const DEFAULT_SETTINGS: AnkiSyncSettings = {
 // --- Settings Tab ---
 export class AnkiSyncSettingTab extends PluginSettingTab {
     plugin: AnkiSyncPlugin;
+    requests: AnkiRequests;
 
-    constructor(app: App, plugin: AnkiSyncPlugin) {
-        super(app, plugin);
+    constructor(plugin: AnkiSyncPlugin, requests: AnkiRequests) {
+        super(plugin.app, plugin);
         this.plugin = plugin;
+        this.requests = requests;
     }
 
     display(): void {
@@ -88,7 +86,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 				.setIcon('refresh-cw')
 				.setTooltip('Attempt to find deck again.')
 				.onClick(async () => {
-					await this.plugin.findAnkiDeck(this.plugin.settings.defaultDeck, this.plugin.settings.createDeckIfNotFound);
+					await this.requests.findAnkiDeck(this.plugin.settings.defaultDeck, this.plugin.settings.createDeckIfNotFound);
 				}));
 
 
@@ -125,23 +123,11 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-       new Setting(containerEl)
-            .setName('Summary Callout Label')
-            .setDesc('The label used in the summary callout (e.g., "summary" for [!summary]).')
-            .addText(text => text
-                .setPlaceholder('summary')
-                .setValue(this.plugin.settings.summaryCalloutLable)
-                .onChange(async (value) => {
-                    this.plugin.settings.summaryCalloutLable = value || DEFAULT_SETTINGS.summaryCalloutLable;
-                    await this.plugin.saveSettings();
-                }));
-
         // Add more settings here for field mappings if you want them configurable via UI
         // For simplicity, the example uses hardcoded mappings in DEFAULT_SETTINGS,
         // but you could add settings to configure which Obsidian prop goes to which Anki field.
          containerEl.createEl('h3', { text: 'Field Mappings' });
-         containerEl.createEl('p', { text: 'Define how Obsidian properties map to Anki fields. Format: {"obsidianProperty": "AnkiField", ...}. Special key "summaryCallout" maps the summary.' });
-
+         containerEl.createEl('p', { text: 'Define how Obsidian properties map to Anki fields. Format: {"obsidianProperty": "AnkiField", ...}.' });
          new Setting(containerEl)
              .setName('Mappings (JSON)')
              .setDesc('Enter mappings as a JSON object.')
