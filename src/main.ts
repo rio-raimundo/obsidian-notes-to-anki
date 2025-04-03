@@ -11,6 +11,9 @@ export default class AnkiSyncPlugin extends Plugin {
     settings: AnkiSyncSettings;
     requests: AnkiRequests;
 
+    get includeTags() { return this.settings.tagsToInclude?.map(t => t.toLowerCase()) ?? []; }
+    get excludeTags() { return this.settings.tagsToExclude?.map(t => t.toLowerCase()) ?? []; }
+
     async onload() {
         await this.loadSettings();
 		this.addSettingTab(new AnkiSyncSettingTab(this.app, this));
@@ -35,106 +38,21 @@ export default class AnkiSyncPlugin extends Plugin {
                 if (!markdownView || !markdownView.file) { return false; }
                 if (checking) { return true; }
                 
+                // All logic goes here
                 const file = markdownView.file;
                 (async () => {
                     await this.requests.checkAnkiConnect(this.settings.ankiConnectUrl);
                     await this.requests.findAnkiDeck(this.settings.defaultDeck, true);
                     await this.syncNoteToAnki(file);
                 })();
-                return true;
             }
         });
 
         this.addCommand({
             id: 'sync-notes-by-tag',
             name: 'Sync Notes by Include/Exclude Tags',
-            callback: async () => {
-                new Notice('Starting sync based on tags...');
-    
-                // 1. Get include/exclude tags from settings (provide defaults)
-                //    Tags in settings should NOT have the leading '#'
-                const includeTags = this.settings.tagsToInclude?.map(t => t.toLowerCase()) ?? [];
-                const excludeTags = this.settings.tagsToExclude?.map(t => t.toLowerCase()) ?? [];
-    
-                console.log("Include Tags:", includeTags);
-                console.log("Exclude Tags:", excludeTags);
-    
-                // 2. Get all markdown files in the vault
-                const allMarkdownFiles = this.app.vault.getMarkdownFiles();
-                const filesToSync: TFile[] = [];
-    
-                // 3. Filter files based on tags
-                for (const file of allMarkdownFiles) {
-                    const fileCache = this.app.metadataCache.getFileCache(file);
-                    const frontmatter = fileCache?.frontmatter || {};
-
-                    // Get tags from metadata, remove leading '#', convert to lowercase
-                    // const getTags = (cache) => {}
-                    const noteTags = fileCache?.tags?.map(t => t.tag.substring(1).toLowerCase()) ?? [];
-                    const frontmatterTags = (frontmatter?.tags as string[])?.map(t => t.toLowerCase()) ?? [];
-                    const allTags = [...noteTags, ...frontmatterTags];
-    
-                    // Skip if no tags found in the note when filtering is needed
-                    if (!allTags.length && (includeTags.length > 0 || excludeTags.length > 0)) {
-                        continue;
-                    }
-    
-                    // Check for exclusion criteria FIRST (more efficient)
-                    let isExcluded = false;
-                    if (excludeTags.length > 0) {
-                        isExcluded = allTags.some(noteTag => excludeTags.includes(noteTag));
-                    }
-    
-                    if (isExcluded) {
-                        // console.log(`Excluding ${file.path} due to tags: ${noteTags.join(', ')}`);
-                        continue; // Skip this file
-                    }
-    
-                    // Check for inclusion criteria
-                    let isIncluded = false;
-                    if (includeTags.length === 0) {
-                        // If no includeTags are specified, all non-excluded notes are included
-                        isIncluded = true;
-                    } else {
-                        // Must have at least one of the includeTags
-                        isIncluded = allTags.some(noteTag => includeTags.includes(noteTag));
-                    }
-    
-                    if (isIncluded) {
-                        // console.log(`Including ${file.path} with tags: ${noteTags.join(', ')}`);
-                        filesToSync.push(file);
-                    }
-                }
-    
-                // 4. Perform the "Sync" Action on the filtered files
-                if (filesToSync.length === 0) {
-                    new Notice('Sync complete. No notes matched the tag criteria.');
-                    return;
-                }
-    
-                new Notice(`Found ${filesToSync.length} notes to sync. Starting process...`);
-                console.log(`Files to sync (${filesToSync.length}):`, filesToSync.map(f => f.path));
-    
-                // --- !! YOUR SYNC LOGIC GOES HERE !! ---
-                // Iterate through filesToSync and do what you need.
-                // This is just a placeholder example:
-                let syncCounter = 0;
-                for (const file of filesToSync) {
-                    try {
-                        await this.syncNoteToAnki(file);
-                        syncCounter++;
-
-                    } catch (error) {
-                        console.error(`Error syncing file ${file.path}:`, error);
-                        new Notice(`Error syncing file: ${file.name}. Check console.`);
-                    }
-                }
-                // --- End of Sync Logic ---
-    
-                new Notice(`Sync complete. Processed ${syncCounter} notes.`);
-                logWithTag(`Sync complete. Processed ${syncCounter} notes.`);
-            } // End of callback
-        }); // End of addCommand
+            callback: () => { this.syncNotesByTags(); }
+        });
     
     }
 
@@ -214,6 +132,49 @@ export default class AnkiSyncPlugin extends Plugin {
         }
     }
 
+    async syncNotesByTags() {
+        // Get all markdown files in the vault
+        const allMarkdownFiles = this.app.vault.getMarkdownFiles();
+        const filesToSync: TFile[] = [];
+
+        // Filter files based on tags
+        for (const file of allMarkdownFiles) {
+            const fileTags = this.getTagsFromFile(file);
+
+            // Skip if no tags found in the note when filtering is needed
+            if (!fileTags.length && this.includeTags.length > 0) { continue; }
+
+            // Check for exclusion criteria first
+            if ( this.excludeTags.length > 0 &&
+                    fileTags.some(noteTag => this.excludeTags.includes(noteTag)) )
+            { continue; }
+
+            // Check for inclusion criteria
+            if (this.includeTags.length === 0 || 
+                fileTags.some(noteTag => this.includeTags.includes(noteTag)))
+            { filesToSync.push(file); }
+        }
+
+        // Perform the "Sync" Action on the filtered files
+        if (filesToSync.length === 0) {
+            logWithTag('Sync complete. No notes matched the tag criteria.');
+            return;
+        }
+
+        // --- !! YOUR SYNC LOGIC GOES HERE !! ---
+        let [syncCounter, failCounter] = [0, 0];
+        for (const file of filesToSync) {
+            try {
+                await this.syncNoteToAnki(file);
+                syncCounter++;
+            } catch (error) {
+                failCounter++;
+                logWithTag(`Error syncing file: ${file.name}. Check console.`);
+            }
+        }
+        logWithTag(`Sync complete. Processed ${syncCounter} notes. Failed to sync ${failCounter} notes.`);
+    }
+
     // --- Helper Functions ---
     extractCallout(content: string, label: string): string | null {
         const calloutRegex = new RegExp(`^> \\[!${label}\\](?:[^\r\n]*)?\r?\n((?:>.*\r?\n?)*)`, 'im');
@@ -237,6 +198,14 @@ export default class AnkiSyncPlugin extends Plugin {
             return plainText;
         }
         return null;
+    }
+
+    getTagsFromFile(file: TFile): string[] {
+        // Get tags from Obsidian file. without opening '#'
+        const fileCache = this.app.metadataCache.getFileCache(file);
+        const noteTags = fileCache?.tags?.map(t => t.tag.substring(1).toLowerCase()) ?? [];
+        const frontmatterTags = (fileCache?.frontmatter?.tags as string[])?.map(t => t.toLowerCase()) ?? [];
+        return [...noteTags, ...frontmatterTags];
     }
 
     async saveGuidToFrontmatter(file: TFile, guid: string) {
