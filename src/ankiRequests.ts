@@ -26,12 +26,13 @@ export class AnkiRequests{
     }
     
     // Function to check the version of Anki, to see if it is open
-    async checkAnkiConnect(url: string): Promise<void> {
+    async checkAnkiConnect(): Promise<void> {
         try {
             const version = await this.ankiRequest<number>('version');
             logWithTag(`AnkiConnect connected successfully (version ${version}).`);
         } catch (error) {
             logWithTag(`AnkiConnect failed to connect (${error}).`);
+            throw(error);
         }
     }
 
@@ -95,41 +96,70 @@ export class AnkiRequests{
      */
     async ensureAnkiNoteTypeModel() {
         const modelName = this.plugin.settings.noteTypeName;
-        const fieldNames = this.plugin.settings.callouts.concat(this.plugin.settings.propertyNames);
         const ankiGuidField = this.plugin.settings.ankiGuidField;
+        const fieldNames = [
+            this.plugin.settings.ankiGuidField, ...
+            this.plugin.settings.propertyNames, ...
+            this.plugin.settings.callouts
+        ];
 
         // Basic validation of required settings
         if (!modelName || typeof modelName !== 'string' || modelName.trim() === '') {
-            return { success: false, action: 'error', message: 'Error: Note Type Name is missing or invalid in settings.' };
+            throw new Error('Error: Note Type Name setting is missing or invalid.');
         }
         if (!Array.isArray(fieldNames) || fieldNames.length === 0 || !fieldNames.every(f => typeof f === 'string' && f.trim() !== '')) {
-            return { success: false, action: 'error', message: 'Error: Field Names are missing, empty, or invalid in settings.' };
+            throw new Error('Error: Field Names are missing, empty, or invalid in settings.');
         }
         if (!ankiGuidField || typeof ankiGuidField !== 'string' || ankiGuidField.trim() === '') {
-            return { success: false, action: 'error', message: 'Error: Anki GUID Field setting is missing or invalid.' };
+            throw new Error('Error: Anki GUID Field setting is missing or invalid.');
         }
-        if (!fieldNames.includes(ankiGuidField)) {
-            return { success: false, action: 'error', message: `Error: The Anki GUID Field ("${ankiGuidField}") specified in settings must be one of the Field Names.` };
-        }
-
 
         try {
-            // 1. Check if the Note Type (Model) exists
+            // Check if the Note Type (Model) exists
             const modelNames = await this.ankiRequest<string[]>('modelNames');
             const modelExists = modelNames.includes(modelName);
 
             if (modelExists) {
-                // 2a. Model exists - Check if fields need modification
+                // Model exists - Check if fields need modification
                 const currentFields = await this.ankiRequest<string[]>('modelFieldNames', { modelName: modelName });
+                if (this.areFieldArraysEqual(currentFields, fieldNames)) { return { success: true, action: 'unchanged', message: 'Note Type (Model) already exists with the correct fields.' }; }
+                
+                // Remove fields not in desired list (iterate backwards to avoid index issues)
+                const desiredFields = new Set(fieldNames);
+                for (let i = currentFields.length - 1; i >= 0; i--) {
+                    const fieldName = currentFields[i];
+                    if (!desiredFields.has(fieldName)) {
+                        await this.ankiRequest<void>('modelFieldRemove', { modelName: modelName, fieldName: fieldName });
+                    }
+                }
 
                 if (!this.areFieldArraysEqual(currentFields, fieldNames)) {
                     // Fields differ, update them using updateModelFields (preserves cards)
-                    await this.ankiRequest<void>('updateModelFields', {
-                        model: {
-                            name: modelName,
-                            fields: fieldNames, // Provide the new list of field names
+                    for (let i = 0; i < fieldNames.length; i++) {
+                        const desiredFieldName = fieldNames[i];
+                        const currentFieldIndex = currentFields.indexOf(desiredFieldName);
+        
+                        if (currentFieldIndex === -1) {
+                            // Field needs to be added
+                            await this.ankiRequest<void>('modelFieldAdd', {
+                                modelName: modelName,
+                                fieldName: desiredFieldName,
+                                index: i // Add at the correct position
+                            });
+                            // Add to our temporary list to track state for repositioning
+                            currentFields.splice(i, 0, desiredFieldName);
+                        } else if (currentFieldIndex !== i) {
+                            // Field exists but needs repositioning
+                            await this.ankiRequest<void>('modelFieldReposition', {
+                                modelName: modelName,
+                                fieldName: desiredFieldName,
+                                index: i
+                            });
+                            // Update our temporary list to reflect the move
+                            const [movedField] = currentFields.splice(currentFieldIndex, 1);
+                            currentFields.splice(i, 0, movedField);
                         }
-                    });
+                    }
                     return { success: true, action: 'updated', message: `Model "${modelName}" fields updated.` };
                 } else {
                     // Fields are already correct

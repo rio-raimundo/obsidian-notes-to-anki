@@ -38,9 +38,14 @@ export default class AnkiSyncPlugin extends Plugin {
                 // All logic goes here
                 const file = markdownView.file;
                 (async () => {
-                    await this.requests.checkAnkiConnect(this.settings.ankiConnectUrl);
-                    await this.requests.findAnkiDeck(this.settings.ankiDeckName, true);
-                    await this.syncNoteToAnki(file);
+                    try {
+                        await this.requests.checkAnkiConnect();
+                        await this.requests.ensureAnkiNoteTypeModel();
+                        await this.requests.findAnkiDeck(this.settings.ankiDeckName, true);
+                        await this.syncNoteToAnki(file);
+                    } catch (error) {
+                        console.error(error);
+                    }
                 })();
             }
         });
@@ -48,7 +53,16 @@ export default class AnkiSyncPlugin extends Plugin {
         this.addCommand({
             id: 'sync-notes-by-tag',
             name: 'Sync Notes by Include/Exclude Tags',
-            callback: () => { this.syncNotesByTags(); }
+            callback: async () => {
+                try {
+                    await this.requests.checkAnkiConnect();
+                    await this.requests.ensureAnkiNoteTypeModel();
+                    await this.requests.findAnkiDeck(this.settings.ankiDeckName, true);
+                    await this.syncNotesByTags();
+                } catch (error) {
+                    console.error(error);
+                }
+            }
         });
     
     }
