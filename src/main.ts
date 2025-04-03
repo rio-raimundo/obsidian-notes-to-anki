@@ -1,4 +1,4 @@
-import { MarkdownView, Notice, Plugin, TFile } from 'obsidian';
+import { MarkdownView, Plugin, TFile } from 'obsidian';
 import { AnkiSyncSettings, DEFAULT_SETTINGS, AnkiSyncSettingTab } from './settings';
 import { logWithTag } from './auxilliary';
 import { MarkdownRenderer } from 'obsidian'; // Use Obsidian's renderer
@@ -69,6 +69,7 @@ export default class AnkiSyncPlugin extends Plugin {
 
     // --- Core Sync Logic ---
     async syncNoteToAnki(file: TFile) {
+        // Returns true if new note created, false if new note updated
         try {
             const fileContent = await this.app.vault.read(file);
             const fileCache = this.app.metadataCache.getFileCache(file);
@@ -84,8 +85,7 @@ export default class AnkiSyncPlugin extends Plugin {
             // Extract contents of callouts as .HTML
             this.settings.callouts.forEach((callout) => {
                 const extractedCallout = this.extractCallout(fileContent, callout);
-                if (!extractedCallout) { new Notice(`Warning: No [!${callout}] callout found in "${file.basename}".`); }
-                ankiFields[callout] = extractedCallout || '';
+                ankiFields[callout] = extractedCallout || '';  // Blank if not found
             })
 
             // Map properties based on settings
@@ -109,7 +109,6 @@ export default class AnkiSyncPlugin extends Plugin {
             let ankiNoteId: number | null = null;
             if (findNotesResult && findNotesResult.length > 0) {
                 ankiNoteId = findNotesResult[0];
-                console.log(`Found existing Anki note (ID: ${ankiNoteId}) for GUID: ${guid}`);
             }
 
             // 5. Add or Update Anki Note
@@ -121,10 +120,10 @@ export default class AnkiSyncPlugin extends Plugin {
                         fields: ankiFields
                     }
                 });
-                new Notice(`Updated Anki note for "${file.basename}"`);
+                return false;
             } else {
                 // Add new note
-                const addNoteResult = await this.requests.ankiRequest('addNote', {
+                await this.requests.ankiRequest('addNote', {
                     note: {
                         deckName: this.settings.ankiDeckName,
                         modelName: this.settings.noteTypeName,
@@ -132,12 +131,12 @@ export default class AnkiSyncPlugin extends Plugin {
                         tags: frontmatter.tags || [] // Add tags from frontmatter if they exist
                     }
                 });
-                new Notice(`Added new Anki note for "${file.basename}" (ID: ${addNoteResult})`);
+                return true;
             }
 
         } catch (error) {
             console.error('Error syncing note to Anki:', error);
-            new Notice(`Error syncing "${file.basename}" to Anki. Check console (Ctrl+Shift+I) and ensure AnkiConnect is running.`);
+            logWithTag(`Error syncing "${file.basename}" to Anki. Check console (Ctrl+Shift+I) and ensure AnkiConnect is running.`);
         }
     }
 
@@ -171,17 +170,17 @@ export default class AnkiSyncPlugin extends Plugin {
         }
 
         // --- !! YOUR SYNC LOGIC GOES HERE !! ---
-        let [syncCounter, failCounter] = [0, 0];
+        let [createCounter, updateCounter, failCounter] = [0, 0, 0];
         for (const file of filesToSync) {
             try {
-                await this.syncNoteToAnki(file);
-                syncCounter++;
+                await this.syncNoteToAnki(file) ? createCounter++ : updateCounter++;
             } catch (error) {
                 failCounter++;
                 logWithTag(`Error syncing file: ${file.name}. Check console.`);
             }
         }
-        logWithTag(`Sync complete. Processed ${syncCounter} notes. Failed to sync ${failCounter} notes.`);
+        const text = `Sync complete.${createCounter > 0 ? ` Created ${createCounter} notes.` : ''}${updateCounter > 0 ? ` Updated ${updateCounter} notes.` : ''}${failCounter > 0 ? ` Failed to sync ${failCounter} notes.` : ''}`;
+        logWithTag(text);
     }
 
     // --- Helper Functions ---
@@ -222,10 +221,9 @@ export default class AnkiSyncPlugin extends Plugin {
             await this.app.fileManager.processFrontMatter(file, (fm) => {
                 fm[this.settings.obsidianGuidProperty] = guid;
             });
-            console.log(`Saved GUID ${guid} to frontmatter of "${file.path}"`);
+            logWithTag(`Saved GUID ${guid} to frontmatter of "${file.path}"`);
         } catch (error) {
-            console.error(`Failed to save GUID to frontmatter for "${file.path}":`, error);
-            new Notice(`Failed to save Anki GUID to "${file.basename}". Please add it manually: ${this.settings.obsidianGuidProperty}: ${guid}`);
+            logWithTag(`Failed to save GUID to frontmatter for "${file.path}". Please add it manually: ${this.settings.obsidianGuidProperty}: ${guid}`);
         }
     }
 }

@@ -122,7 +122,7 @@ export class AnkiRequests{
             if (modelExists) {
                 // Model exists - Check if fields need modification
                 const currentFields = await this.ankiRequest<string[]>('modelFieldNames', { modelName: modelName });
-                if (this.areFieldArraysEqual(currentFields, fieldNames)) { return { success: true, action: 'unchanged', message: 'Note Type (Model) already exists with the correct fields.' }; }
+                if (this.areFieldArraysEqual(currentFields, fieldNames)) { return; }
                 
                 // Remove fields not in desired list (iterate backwards to avoid index issues)
                 const desiredFields = new Set(fieldNames);
@@ -160,10 +160,11 @@ export class AnkiRequests{
                             currentFields.splice(i, 0, movedField);
                         }
                     }
-                    return { success: true, action: 'updated', message: `Model "${modelName}" fields updated.` };
+                    logWithTag(`Model "${modelName}" fields updated.`);
+                    return;
                 } else {
                     // Fields are already correct
-                    return { success: true, action: 'unchanged', message: `Model "${modelName}" is up-to-date.` };
+                    return;
                 }
 
             } else {
@@ -183,7 +184,8 @@ export class AnkiRequests{
                     cardTemplates: newCardTemplates,
                     isCloze: false
                 });
-                return { success: true, action: 'created', message: `Model "${modelName}" created.` };
+                logWithTag(`Model "${modelName}" created successfully.`);
+                return;
             }
 
         } catch (error) {

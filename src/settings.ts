@@ -1,7 +1,8 @@
-import { PluginSettingTab, Setting, Notice } from "obsidian";
+import { PluginSettingTab, Setting } from "obsidian";
 import { AnkiRequests } from "./ankiRequests";
 
 import AnkiSyncPlugin from "./main";
+import { logWithTag } from "./auxilliary";
 
 // Interface for plugin settings
 export interface AnkiSyncSettings {
@@ -140,8 +141,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                              this.plugin.settings.fieldMappings = JSON.parse(value);
                              await this.plugin.saveSettings();
                          } catch (e) {
-                             console.error("Invalid JSON for field mappings:", e);
-                             new Notice("Invalid JSON format for field mappings.");
+                            logWithTag("Invalid JSON format for field mappings.");
                          }
                      });
                  text.inputEl.rows = 8;
