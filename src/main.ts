@@ -2,57 +2,28 @@ import { MarkdownView, Notice, Plugin, TFile } from 'obsidian';
 import { AnkiSyncSettings, DEFAULT_SETTINGS, AnkiSyncSettingTab } from './settings';
 import { logWithTag } from './auxilliary';
 import { MarkdownRenderer } from 'obsidian'; // Use Obsidian's renderer
+import { AnkiRequests } from './ankiRequests';
 
 
-// Helper function to make AnkiConnect requests
-async function ankiRequest<T>(url: string, action: string, params: object = {}): Promise<T> {
-    const body = JSON.stringify({ action, version: 6, params });
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            body: body,
-            headers: { 'Content-Type': 'application/json' }
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        if (data.error) {
-            throw new Error(`AnkiConnect Error: ${data.error}`);
-        }
-        return data.result;
-    } catch (error) {
-        console.error('AnkiConnect request failed:', error);
-        new Notice(`AnkiConnect request failed: ${error.message}`);
-        throw error; // Re-throw to be caught by calling function
-    }
-}
+
 
 export default class AnkiSyncPlugin extends Plugin {
     settings: AnkiSyncSettings;
+    requests: AnkiRequests;
 
     async onload() {
         await this.loadSettings();
 		this.addSettingTab(new AnkiSyncSettingTab(this.app, this));
+        this.requests = new AnkiRequests(this);
         this.addAllCommands();
 
-        // Check if anki deck exists; create if it does not
-		await this.findAnkiDeck(this.settings.defaultDeck, true);
-
+        // Check if anki deck exists; create if it does now
 		logWithTag('Plugin loaded.');
     }
+    onunload() { logWithTag('Plugin unloaded successfully.'); }
 
-    onunload() {
-        logWithTag('Plugin unloaded successfully.');
-    }
-
-    async loadSettings() {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    }
-
-    async saveSettings() {
-        await this.saveData(this.settings);
-    }
+    async saveSettings() { await this.saveData(this.settings); }
+    async loadSettings() { this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()); }
 
     addAllCommands() {
         // Add command to sync the current note
@@ -61,13 +32,16 @@ export default class AnkiSyncPlugin extends Plugin {
             name: 'Sync current note to Anki',
             checkCallback: (checking: boolean) => {
                 const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-                if (markdownView && markdownView.file) {
-                    if (!checking) {
-                        this.syncNoteToAnki(markdownView.file);
-                    }
-                    return true;
-                }
-                return false;
+                if (!markdownView || !markdownView.file) { return false; }
+                if (checking) { return true; }
+                
+                const file = markdownView.file;
+                (async () => {
+                    await this.requests.checkAnkiConnect(this.settings.ankiConnectUrl);
+                    await this.requests.findAnkiDeck(this.settings.defaultDeck, true);
+                    await this.syncNoteToAnki(file);
+                })();
+                return true;
             }
         });
 
@@ -164,49 +138,6 @@ export default class AnkiSyncPlugin extends Plugin {
     
     }
 
-    async findAnkiDeck(deckName: string, createIfNotFound: boolean) {
-        try {
-            console.log(`Checking if Anki deck "${deckName}" exists...`);
-            const existingDecks: string[] = await ankiRequest<string[]>(this.settings.ankiConnectUrl, 'deckNames');
-
-            if (!existingDecks.includes(deckName)) {
-				if (!createIfNotFound) {
-					const text = `Anki deck "${deckName}" could not be found. Either create it manually, change deck name, or change setting to allow automatic creation. `
-					new Notice(text);
-					console.info(text);
-					return;
-				}
-
-                new Notice(`Anki deck "${deckName}" not found. Creating deck automatically...`);
-                console.log(`Attempting to create deck: ${deckName}`);
-
-                // createDeck returns the new deck's ID on success, or null/error
-                const createResult = await ankiRequest<number|null>(this.settings.ankiConnectUrl, 'createDeck', { deck: deckName });
-
-                if (createResult === null) {
-                     // AnkiConnect might return null even on success in some edge cases or versions
-                     console.warn(`AnkiConnect returned null for creating deck "${deckName}", but proceeding. Check Anki if deck was created.`);
-                } else {
-                    new Notice(`Successfully created Anki deck: "${deckName}"`);
-                    console.log(`Deck "${deckName}" created successfully (ID: ${createResult}).`);
-                }
-            } else {
-                console.log(`Anki sync: Found existing anki deck "${deckName}"!`);
-            }
-        } catch (error) {
-            console.error(`Error checking or creating Anki deck "${deckName}":`, error);
-            // Provide more specific feedback if possible
-            if (error.message && error.message.includes("deck name conflicts with existing model")) {
-                 new Notice(`Error: Deck name "${deckName}" conflicts with an existing Anki Note Type name. Please choose a different deck name.`);
-            } else {
-                 new Notice(`Failed to ensure Anki deck "${deckName}" exists. Check Anki/AnkiConnect. Error: ${error.message || error}`);
-            }
-
-            // Stop the sync process if deck handling fails critically
-            return; // Exit the sync function
-        }
-    }
-
     // --- Core Sync Logic ---
     async syncNoteToAnki(file: TFile) {
         new Notice(`Syncing "${file.basename}" to Anki...`);
@@ -244,7 +175,7 @@ export default class AnkiSyncPlugin extends Plugin {
             }
 
             // 4. Check if Anki Note Exists (using GUID)
-            const findNotesResult = await ankiRequest<number[]>(this.settings.ankiConnectUrl, 'findNotes', {
+            const findNotesResult = await this.requests.ankiRequest<number[]>(this.settings.ankiConnectUrl, 'findNotes', {
                 query: `deck:"${this.settings.defaultDeck}" "${this.settings.ankiGuidField}:${guid}"`
             });
 
@@ -257,7 +188,7 @@ export default class AnkiSyncPlugin extends Plugin {
             // 5. Add or Update Anki Note
             if (ankiNoteId !== null) {
                 // Update existing note
-                await ankiRequest(this.settings.ankiConnectUrl, 'updateNoteFields', {
+                await this.requests.ankiRequest(this.settings.ankiConnectUrl, 'updateNoteFields', {
                     note: {
                         id: ankiNoteId,
                         fields: ankiFields
@@ -266,7 +197,7 @@ export default class AnkiSyncPlugin extends Plugin {
                 new Notice(`Updated Anki note for "${file.basename}"`);
             } else {
                 // Add new note
-                const addNoteResult = await ankiRequest(this.settings.ankiConnectUrl, 'addNote', {
+                const addNoteResult = await this.requests.ankiRequest(this.settings.ankiConnectUrl, 'addNote', {
                     note: {
                         deckName: this.settings.defaultDeck,
                         modelName: this.settings.noteTypeName,
