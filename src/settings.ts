@@ -6,12 +6,13 @@ import AnkiSyncPlugin from "./main";
 // Interface for plugin settings
 export interface AnkiSyncSettings {
 	ankiConnectUrl: string;
-	defaultDeck: string;
+	ankiDeckName: string;
 	createDeckIfNotFound: boolean;
 	noteTypeName: string;
 	ankiGuidField: string; // Name of the GUID field in Anki Note Type
 	obsidianGuidProperty: string; // Name of the property in Obsidian frontmatter
 	fieldMappings: { [obsidianProperty: string]: string }; // Maps Obsidian property keys to Anki field names
+    propertyNames: string[];
     callouts: string[];
     tagsToInclude: string[];
     tagsToExclude: string[];
@@ -19,7 +20,7 @@ export interface AnkiSyncSettings {
 
 export const DEFAULT_SETTINGS: AnkiSyncSettings = {
 	ankiConnectUrl: 'http://127.0.0.1:8765',
-	defaultDeck: 'Obsidian articles',
+	ankiDeckName: 'Obsidian articles',
 	createDeckIfNotFound: true,
 	noteTypeName: 'obsidian-articles', // Matches the Anki Note Type name
 	ankiGuidField: 'GUID',           // Matches the Anki field name for the GUID
@@ -30,6 +31,7 @@ export const DEFAULT_SETTINGS: AnkiSyncSettings = {
 		'journal': 'Journal',
 		'year': 'Year'
 	},
+    propertyNames: ['title', 'authors', 'journal', 'year'],
     callouts: ['summary'],
     tagsToInclude: [],
     tagsToExclude: []
@@ -67,9 +69,9 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
             .setDesc('The name of the anki deck to add notes to.')
             .addText(text => text
                 .setPlaceholder('Academic Articles')
-                .setValue(this.plugin.settings.defaultDeck)
+                .setValue(this.plugin.settings.ankiDeckName)
                 .onChange(async (value) => {
-                    this.plugin.settings.defaultDeck = value || DEFAULT_SETTINGS.defaultDeck;
+                    this.plugin.settings.ankiDeckName = value || DEFAULT_SETTINGS.ankiDeckName;
                     await this.plugin.saveSettings();
                 }));
 		
@@ -86,13 +88,13 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 				.setIcon('refresh-cw')
 				.setTooltip('Attempt to find deck again.')
 				.onClick(async () => {
-					await this.requests.findAnkiDeck(this.plugin.settings.defaultDeck, this.plugin.settings.createDeckIfNotFound);
+					await this.requests.findAnkiDeck(this.plugin.settings.ankiDeckName, this.plugin.settings.createDeckIfNotFound);
 				}));
 
 
         new Setting(containerEl)
             .setName('Anki Note Type Name')
-            .setDesc('The exact name of the Anki Note Type to use.')
+            .setDesc('The name to use for the Anki note type, created automatically by this plugin.')
             .addText(text => text
                 .setPlaceholder('Academic Article')
                 .setValue(this.plugin.settings.noteTypeName)
@@ -147,8 +149,76 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
              });
             
             new Setting(containerEl)
+            .setName('Properties to copy')
+            .setDesc('Names of properties to store as Anki fields. Do not need to retype GUID.')
+            .then((setting) => {
+                // Use controlEl for custom HTML structure
+                const controlEl = setting.controlEl;
+                controlEl.addClass('tag-input-container'); // For potential CSS targeting
+
+                // Div to hold the visible tags
+                const tagsDiv = controlEl.createDiv({ cls: 'tags-display' });
+
+                // Input field for the next tag
+                const inputEl = controlEl.createEl('input', { type: 'text', placeholder: 'Add option...' });
+                inputEl.addClass('tag-input-field');
+
+                // --- Helper function to render tags ---
+                const renderTags = () => {
+                    tagsDiv.empty(); // Clear existing tags
+                    this.plugin.settings.propertyNames.forEach((tagText, index) => {
+                        const tagEl = tagsDiv.createSpan({ cls: 'tag-item' });
+                        tagEl.setText(tagText);
+                        const removeBtn = tagEl.createSpan({ cls: 'tag-remove', text: '✖' }); // Simple 'x'
+
+                        removeBtn.addEventListener('click', async () => {
+                            this.plugin.settings.propertyNames.splice(index, 1); // Remove from array
+                            await this.plugin.saveSettings();
+                            renderTags(); // Re-render the tags UI
+                        });
+                    });
+                    // Ensure input is always after tags
+                    controlEl.appendChild(inputEl);
+                    inputEl.focus(); // Optional: Keep focus on input
+                };
+
+                // --- Event listener for adding tags ---
+                inputEl.addEventListener('keydown', async (event) => {
+                    // Add tag on Enter or Comma, prevent default for these keys if adding
+                    if (event.key === 'Enter') {
+                        event.preventDefault(); // Prevent form submission or comma in input
+                        const newTag = inputEl.value.trim();
+                        inputEl.value = ''; // Clear input immediately
+
+                        if (newTag && !this.plugin.settings.propertyNames.includes(newTag)) {
+                            this.plugin.settings.propertyNames.push(newTag);
+                            await this.plugin.saveSettings();
+                            renderTags(); // Add the new tag visually
+                        }
+                    }
+                });
+                // Optional: Add tag on blur (losing focus)
+                inputEl.addEventListener('blur', async () => {
+                    // Set timeout allows click on remove button to register before blur potentially adds tag
+                    setTimeout(async () => {
+                        const newTag = inputEl.value.trim();
+                        inputEl.value = ''; // Clear input
+
+                        if (newTag && !this.plugin.settings.propertyNames.includes(newTag)) {
+                            this.plugin.settings.propertyNames.push(newTag);
+                            await this.plugin.saveSettings();
+                            renderTags();
+                        }
+                    }, 100); // Small delay
+                });
+
+                // --- Initial rendering ---
+                renderTags();
+            });
+
+            new Setting(containerEl)
             .setName('Callouts to copy')
-            .setDesc('Add callouts to copy from Obsidian to Anki, separated by enter.')
+            .setDesc('Identifiers of callouts (e.g. "summary" if [!summary]) to store as Anki fields.')
             .then((setting) => {
                 // Use controlEl for custom HTML structure
                 const controlEl = setting.controlEl;

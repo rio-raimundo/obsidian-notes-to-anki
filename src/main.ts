@@ -39,7 +39,7 @@ export default class AnkiSyncPlugin extends Plugin {
                 const file = markdownView.file;
                 (async () => {
                     await this.requests.checkAnkiConnect(this.settings.ankiConnectUrl);
-                    await this.requests.findAnkiDeck(this.settings.defaultDeck, true);
+                    await this.requests.findAnkiDeck(this.settings.ankiDeckName, true);
                     await this.syncNoteToAnki(file);
                 })();
             }
@@ -88,8 +88,8 @@ export default class AnkiSyncPlugin extends Plugin {
             }
 
             // 4. Check if Anki Note Exists (using GUID)
-            const findNotesResult = await this.requests.ankiRequest<number[]>(this.settings.ankiConnectUrl, 'findNotes', {
-                query: `deck:"${this.settings.defaultDeck}" "${this.settings.ankiGuidField}:${guid}"`
+            const findNotesResult = await this.requests.ankiRequest<number[]>('findNotes', {
+                query: `deck:"${this.settings.ankiDeckName}" "${this.settings.ankiGuidField}:${guid}"`
             });
 
             let ankiNoteId: number | null = null;
@@ -101,7 +101,7 @@ export default class AnkiSyncPlugin extends Plugin {
             // 5. Add or Update Anki Note
             if (ankiNoteId !== null) {
                 // Update existing note
-                await this.requests.ankiRequest(this.settings.ankiConnectUrl, 'updateNoteFields', {
+                await this.requests.ankiRequest('updateNoteFields', {
                     note: {
                         id: ankiNoteId,
                         fields: ankiFields
@@ -110,9 +110,9 @@ export default class AnkiSyncPlugin extends Plugin {
                 new Notice(`Updated Anki note for "${file.basename}"`);
             } else {
                 // Add new note
-                const addNoteResult = await this.requests.ankiRequest(this.settings.ankiConnectUrl, 'addNote', {
+                const addNoteResult = await this.requests.ankiRequest('addNote', {
                     note: {
-                        deckName: this.settings.defaultDeck,
+                        deckName: this.settings.ankiDeckName,
                         modelName: this.settings.noteTypeName,
                         fields: ankiFields,
                         tags: frontmatter.tags || [] // Add tags from frontmatter if they exist
