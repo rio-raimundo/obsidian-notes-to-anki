@@ -74,36 +74,33 @@ export default class AnkiSyncPlugin extends Plugin {
             const fileContent = await this.app.vault.read(file);
             const fileCache = this.app.metadataCache.getFileCache(file);
             const frontmatter = fileCache?.frontmatter || {};
-
-            // 1. Get unique ID
-            const guid = frontmatter[this.settings.obsidianGuidProperty];
             
-            // 2. Prepare Anki Note Fields
+            // Prepare Anki Note Fields
+            const guid = frontmatter[this.settings.obsidianGuidProperty];
             const ankiFields: { [key: string]: string } = {};
-            ankiFields[this.settings.ankiGuidField] = guid;
+            ankiFields[this.settings.obsidianGuidProperty] = guid;
 
-            // Extract contents of callouts as .HTML
+            // Extract contents of callouts as .HTML and assign to fields
             this.settings.callouts.forEach((callout) => {
                 const extractedCallout = this.extractCallout(fileContent, callout);
                 ankiFields[callout] = extractedCallout || '';  // Blank if not found
             })
 
-            // Map properties based on settings
-            for (const obsProp in this.settings.fieldMappings) {
-                const ankiField = this.settings.fieldMappings[obsProp];
-                if (frontmatter[obsProp]) {
+            // Assign other properties to fields
+            this.settings.propertyNames.forEach((propertyName) => {
+                if (frontmatter[propertyName]) {
                     // Handle potential arrays (like authors, tags)
-                    ankiFields[ankiField] = Array.isArray(frontmatter[obsProp])
-                        ? frontmatter[obsProp].join(', ') // Join arrays with comma
-                        : String(frontmatter[obsProp]); // Convert others to string
+                    ankiFields[propertyName] = Array.isArray(frontmatter[propertyName])
+                        ? frontmatter[propertyName].join(', ') // Join arrays with comma
+                        : String(frontmatter[propertyName]); // Convert others to string
                 } else {
-                    ankiFields[ankiField] = ''; // Default to empty if property doesn't exist
+                    ankiFields[propertyName] = ''; // Default to empty if property doesn't exist
                 }
-            }
+            })
 
             // 4. Check if Anki Note Exists (using GUID)
             const findNotesResult = await this.requests.ankiRequest<number[]>('findNotes', {
-                query: `deck:"${this.settings.ankiDeckName}" "${this.settings.ankiGuidField}:${guid}"`
+                query: `deck:"${this.settings.ankiDeckName}" "${this.settings.obsidianGuidProperty}:${guid}"`
             });
 
             let ankiNoteId: number | null = null;

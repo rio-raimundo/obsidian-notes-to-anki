@@ -96,9 +96,9 @@ export class AnkiRequests{
      */
     async ensureAnkiNoteTypeModel() {
         const modelName = this.plugin.settings.noteTypeName;
-        const ankiGuidField = this.plugin.settings.ankiGuidField;
+        const GuidField = this.plugin.settings.obsidianGuidProperty;
         const fieldNames = [
-            this.plugin.settings.ankiGuidField, ...
+            GuidField, ...
             this.plugin.settings.propertyNames, ...
             this.plugin.settings.callouts
         ];
@@ -110,7 +110,7 @@ export class AnkiRequests{
         if (!Array.isArray(fieldNames) || fieldNames.length === 0 || !fieldNames.every(f => typeof f === 'string' && f.trim() !== '')) {
             throw new Error('Error: Field Names are missing, empty, or invalid in settings.');
         }
-        if (!ankiGuidField || typeof ankiGuidField !== 'string' || ankiGuidField.trim() === '') {
+        if (!GuidField || typeof GuidField !== 'string' || GuidField.trim() === '') {
             throw new Error('Error: Anki GUID Field setting is missing or invalid.');
         }
 
@@ -170,7 +170,7 @@ export class AnkiRequests{
                 const newCardTemplates = [
                     {
                         // Name is omitted, Anki will provide default like "Card 1"
-                        Front: `{{${ankiGuidField}}}`, // Use the specified field for the front
+                        Front: `{{${GuidField}}}`, // Use the specified field for the front
                         Back: '' // Blank back side
                     }
                 ];

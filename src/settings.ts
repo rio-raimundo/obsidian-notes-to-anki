@@ -2,7 +2,6 @@ import { PluginSettingTab, Setting } from "obsidian";
 import { AnkiRequests } from "./ankiRequests";
 
 import AnkiSyncPlugin from "./main";
-import { logWithTag } from "./auxilliary";
 
 // Interface for plugin settings
 export interface AnkiSyncSettings {
@@ -10,9 +9,7 @@ export interface AnkiSyncSettings {
 	ankiDeckName: string;
 	createDeckIfNotFound: boolean;
 	noteTypeName: string;
-	ankiGuidField: string; // Name of the GUID field in Anki Note Type
 	obsidianGuidProperty: string; // Name of the property in Obsidian frontmatter
-	fieldMappings: { [obsidianProperty: string]: string }; // Maps Obsidian property keys to Anki field names
     propertyNames: string[];
     callouts: string[];
     tagsToInclude: string[];
@@ -24,14 +21,7 @@ export const DEFAULT_SETTINGS: AnkiSyncSettings = {
 	ankiDeckName: 'Obsidian articles',
 	createDeckIfNotFound: true,
 	noteTypeName: 'obsidian-articles', // Matches the Anki Note Type name
-	ankiGuidField: 'GUID',           // Matches the Anki field name for the GUID
 	obsidianGuidProperty: 'citation key', // Matches the Obsidian property name
-	fieldMappings: {
-		'title': 'Title', // Obsidian property 'title' maps to Anki field 'Title'
-		'authors': 'Authors',
-		'journal': 'Journal',
-		'year': 'Year'
-	},
     propertyNames: ['title', 'authors', 'journal', 'year'],
     callouts: ['summary'],
     tagsToInclude: [],
@@ -103,17 +93,6 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                     this.plugin.settings.noteTypeName = value || DEFAULT_SETTINGS.noteTypeName;
                     await this.plugin.saveSettings();
                 }));
-
-        new Setting(containerEl)
-            .setName('Anki GUID Field Name')
-            .setDesc('The exact name of the field in your Anki Note Type that stores the unique ID.')
-            .addText(text => text
-                .setPlaceholder('GUID')
-                .setValue(this.plugin.settings.ankiGuidField)
-                .onChange(async (value) => {
-                    this.plugin.settings.ankiGuidField = value || DEFAULT_SETTINGS.ankiGuidField;
-                    await this.plugin.saveSettings();
-                }));
 			
 		new Setting(containerEl)
             .setName('Obsidian GUID Property Name')
@@ -125,28 +104,6 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                     this.plugin.settings.obsidianGuidProperty = value || DEFAULT_SETTINGS.obsidianGuidProperty;
                     await this.plugin.saveSettings();
                 }));
-
-        // Add more settings here for field mappings if you want them configurable via UI
-        // For simplicity, the example uses hardcoded mappings in DEFAULT_SETTINGS,
-        // but you could add settings to configure which Obsidian prop goes to which Anki field.
-         containerEl.createEl('h3', { text: 'Field Mappings' });
-         containerEl.createEl('p', { text: 'Define how Obsidian properties map to Anki fields. Format: {"obsidianProperty": "AnkiField", ...}.' });
-         new Setting(containerEl)
-             .setName('Mappings (JSON)')
-             .setDesc('Enter mappings as a JSON object.')
-             .addTextArea(text => {
-                 text.setValue(JSON.stringify(this.plugin.settings.fieldMappings, null, 2))
-                     .onChange(async (value) => {
-                         try {
-                             this.plugin.settings.fieldMappings = JSON.parse(value);
-                             await this.plugin.saveSettings();
-                         } catch (e) {
-                            logWithTag("Invalid JSON format for field mappings.");
-                         }
-                     });
-                 text.inputEl.rows = 8;
-                 text.inputEl.cols = 50;
-             });
             
             new Setting(containerEl)
             .setName('Properties to copy')
