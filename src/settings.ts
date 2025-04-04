@@ -1,5 +1,6 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import { AnkiRequests } from "./ankiRequests";
+import { createTagInputComponent } from "./customSettingsTab";
 
 import AnkiSyncPlugin from "./main";
 
@@ -177,68 +178,17 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
             .setName('Callouts to copy')
             .setDesc('Identifiers of callouts (e.g. "summary" if [!summary]) to store as Anki fields.')
             .then((setting) => {
-                // Use controlEl for custom HTML structure
-                const controlEl = setting.controlEl;
-                controlEl.addClass('tag-input-container'); // For potential CSS targeting
+                setting.controlEl.empty(); // Clear potential default controls
 
-                // Div to hold the visible tags
-                const tagsDiv = controlEl.createDiv({ cls: 'tags-display' });
-
-                // Input field for the next tag
-                const inputEl = controlEl.createEl('input', { type: 'text', placeholder: 'Add option...' });
-                inputEl.addClass('tag-input-field');
-
-                // --- Helper function to render tags ---
-                const renderTags = () => {
-                    tagsDiv.empty(); // Clear existing tags
-                    this.plugin.settings.callouts.forEach((tagText, index) => {
-                        const tagEl = tagsDiv.createSpan({ cls: 'tag-item' });
-                        tagEl.setText(tagText);
-                        const removeBtn = tagEl.createSpan({ cls: 'tag-remove', text: '✖' }); // Simple 'x'
-
-                        removeBtn.addEventListener('click', async () => {
-                            this.plugin.settings.callouts.splice(index, 1); // Remove from array
-                            await this.plugin.saveSettings();
-                            renderTags(); // Re-render the tags UI
-                        });
-                    });
-                    // Ensure input is always after tags
-                    controlEl.appendChild(inputEl);
-                    inputEl.focus(); // Optional: Keep focus on input
-                };
-
-                // --- Event listener for adding tags ---
-                inputEl.addEventListener('keydown', async (event) => {
-                    // Add tag on Enter or Comma, prevent default for these keys if adding
-                    if (event.key === 'Enter') {
-                        event.preventDefault(); // Prevent form submission or comma in input
-                        const newTag = inputEl.value.trim();
-                        inputEl.value = ''; // Clear input immediately
-
-                        if (newTag && !this.plugin.settings.callouts.includes(newTag)) {
-                            this.plugin.settings.callouts.push(newTag);
-                            await this.plugin.saveSettings();
-                            renderTags(); // Add the new tag visually
-                        }
-                    }
-                });
-                // Optional: Add tag on blur (losing focus)
-                inputEl.addEventListener('blur', async () => {
-                    // Set timeout allows click on remove button to register before blur potentially adds tag
-                    setTimeout(async () => {
-                        const newTag = inputEl.value.trim();
-                        inputEl.value = ''; // Clear input
-
-                        if (newTag && !this.plugin.settings.callouts.includes(newTag)) {
-                            this.plugin.settings.callouts.push(newTag);
-                            await this.plugin.saveSettings();
-                            renderTags();
-                        }
-                    }, 100); // Small delay
-                });
-
-                // --- Initial rendering ---
-                renderTags();
+                createTagInputComponent(
+                    setting.controlEl,
+                    () => this.plugin.settings.callouts,  // getter to access property
+                    async (newTags) => {  // setter to update property
+                        this.plugin.settings.callouts = newTags;
+                        await this.plugin.saveSettings();
+                    },  
+                    'Add callout name.' //
+                );
             });
 
             new Setting(containerEl)
