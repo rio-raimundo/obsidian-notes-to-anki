@@ -1,11 +1,11 @@
 {
-  "id": "notes-to-anki",
-  "name": "Notes to Anki",
-  "version": "0.0.1",
-  "minAppVersion": "0.15.0",
-  "description": "Convert notes to Anki flashcards",
-  "author": "rio-raimundo",
-  "authorUrl": "https://github.com/rio-raimundo/",
-  "fundingUrl": "https://ko-fi.com/rioraimundo",
-  "isDesktopOnly": "true"
+	"id": "notes-to-anki",
+	"name": "Notes to Anki",
+	"version": "0.1.0",
+	"minAppVersion": "0.15.0",
+	"description": "Convert notes to Anki flashcards",
+	"author": "rio-raimundo",
+	"authorUrl": "https://github.com/rio-raimundo/",
+	"fundingUrl": "https://ko-fi.com/rioraimundo",
+	"isDesktopOnly": "true"
 }

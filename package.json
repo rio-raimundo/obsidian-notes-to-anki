@@ -1,6 +1,6 @@
 {
   "name": "notes-to-anki",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Convert notes to Anki flashcards",
   "main": "main.js",
   "scripts": {
