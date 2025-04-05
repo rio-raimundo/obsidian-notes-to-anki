@@ -17,35 +17,7 @@ export function addTagInputSetting(
 
     // Create the main container div and input field
     const containerEl = setting.controlEl.createDiv({ cls: 'tag-input-container' });
-    const inputEl = createEditableDiv(containerEl, 'multi-select-input');
-
-    // Create click listener on the container to focus the input when clicked
-    containerEl.addEventListener('click', (event) => {
-        if (event.target === containerEl) {
-            inputEl.focus();
-        }
-    });
-
-    // Listen for keydown events (specifically 'Enter') on the input field
-    inputEl.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-            event.preventDefault(); // Prevent default 'Enter' behavior (e.g., form submission)
-            const newTag = (inputEl.textContent ?? '').trim(); // Get and clean the input value
-
-            if (newTag) { // Proceed only if the input is not empty
-                const currentTags = getTags();
-                if (!currentTags.includes(newTag)) {
-                    // Add the new tag to the existing list
-                    setTags([...currentTags, newTag]);
-                    addTagChip(newTag);
-                }
-
-                // Clear the input field and focus back
-                inputEl.textContent = ''; // Clear the input field
-                inputEl.focus();
-            }
-        }
-    });
+    const inputEl = createInputField();
 
     // Render the initial set of tags when the setting is displayed
     const initialTags = getTags();
@@ -76,6 +48,13 @@ export function addTagInputSetting(
         removeButton.className = 'multi-select-pill-remove-button'
         removeButton.appendChild(getIcon('x') ?? document.createElement('span'));
 
+        // Event listener for on click
+        removeButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            setTags(getTags().filter(tag => tag !== tagText));
+            outerPillDiv.remove();
+        });
+
         // 3. Create the span for the actual text
         const textSpan = document.createElement('span');
         textSpan.textContent = tagText; // Put the text here
@@ -87,6 +66,58 @@ export function addTagInputSetting(
 
         // Insert the new tag element right before the input field
         containerEl.insertBefore(outerPillDiv, inputEl);
+    }
+
+    function createInputField() {
+        const inputEl = createEditableDiv(containerEl, 'multi-select-input');
+
+        // Create click listener on the container to focus the input when clicked
+        containerEl.addEventListener('click', (event) => {
+            if (event.target === containerEl) {
+                inputEl.focus();
+            }
+        });
+
+        // Listeners for keydown
+        inputEl.addEventListener('keydown', (event) => {
+
+            // Listener to create tag on 'enter' press
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Prevent default 'Enter' behavior (e.g., form submission)
+                const newTag = (inputEl.textContent ?? '').trim(); // Get and clean the input value
+
+                if (newTag) { // Proceed only if the input is not empty
+                    const currentTags = getTags();
+                    if (!currentTags.includes(newTag)) {
+                        // Add the new tag to the existing list
+                        setTags([...currentTags, newTag]);
+                        addTagChip(newTag);
+                    }
+
+                    // Clear the input field and focus back
+                    inputEl.textContent = ''; // Clear the input field
+                    inputEl.focus();
+                }
+            }
+
+            // Listener to delete final tag on 'backspace' press
+            else if (event.key === 'Backspace') {
+                const currentTags = getTags();
+                if (currentTags.length === 0 || inputEl.textContent !== '') return;
+                event.preventDefault();
+                
+                // Remove the last tag element - first check we have the right element
+                const lastTagElement = inputEl.previousElementSibling;
+                if (lastTagElement && lastTagElement.classList.contains('multi-select-pill')) {
+                    setTags(currentTags.slice(0, -1));
+                    lastTagElement.remove();
+                    console.log(getTags())
+                }
+                else { console.warn("Backspace: Could not find the visual tag element to remove before the input field."); }
+            }
+        });
+
+        return inputEl;
     }
 }
 
