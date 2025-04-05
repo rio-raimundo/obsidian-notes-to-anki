@@ -41,8 +41,8 @@ export default class AnkiSyncPlugin extends Plugin {
                 (async () => {
                     try {
                         await this.requests.checkAnkiConnect();
-                        await this.requests.processAnkiModel({shouldCreate: this.settings.createDeckIfNotFound, logAsNotice: false});
-                        await this.requests.processAnkiDeck({shouldCreate: this.settings.createDeckIfNotFound, logAsNotice: false});
+                        await this.requests.processAnkiModel({shouldCreate: this.settings.createIfNotFound, logAsNotice: false});
+                        await this.requests.processAnkiDeck({shouldCreate: this.settings.createIfNotFound, logAsNotice: false});
                         await this.syncNoteToAnki(file);
                     } catch (error) {
                         console.error(error);
@@ -57,8 +57,8 @@ export default class AnkiSyncPlugin extends Plugin {
             callback: async () => {
                 try {
                     await this.requests.checkAnkiConnect();
-                    await this.requests.processAnkiModel({shouldCreate: this.settings.createDeckIfNotFound, logAsNotice: false});
-                    await this.requests.processAnkiDeck({shouldCreate: this.settings.createDeckIfNotFound, logAsNotice: false});
+                    await this.requests.processAnkiModel({shouldCreate: this.settings.createIfNotFound, logAsNotice: false});
+                    await this.requests.processAnkiDeck({shouldCreate: this.settings.createIfNotFound, logAsNotice: false});
                     await this.syncNotesByTags();
                 } catch (error) {
                     console.error(error);

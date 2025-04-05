@@ -56,7 +56,7 @@ export class AnkiRequests{
 
                 if (createResult === null) { logWithTag('Attempted to create Anki deck, but failed.'); } else { logWithTag(`Deck "${deckName}" created successfully (ID: ${createResult}).`, logAsNotice); }
 
-            } else { logWithTag(`Anki sync: Found existing anki deck "${deckName}"!`, logAsNotice); }
+            } else { logWithTag(`Found existing anki deck "${deckName}".`, logAsNotice); }
 
         } catch (error) {
             logWithTag(`Failed to ensure Anki deck "${deckName}" exists. Check Anki/AnkiConnect. Error: ${error.message || error}`);
@@ -143,7 +143,7 @@ export class AnkiRequests{
 
                 // If everything is the same, log and return
                 if (this.areFieldArraysEqual(originalAnkiFields, desiredFields)) {
-                    logWithTag(`Anki sync: Anki Note Type "${modelName}" with correct fields found.`, logAsNotice);
+                    logWithTag(`Anki Note Type "${modelName}" with correct fields found.`, logAsNotice);
                     return;
                 }
                 

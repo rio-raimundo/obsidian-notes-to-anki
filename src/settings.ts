@@ -19,7 +19,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
     display(): void {
         const { containerEl } = this;
         containerEl.empty();
-        containerEl.createEl('h2', { text: 'Anki Sync Settings' });
+        containerEl.createEl('h2', { text: 'Notes to Anki Settings' });
 
         new Setting(containerEl)
             .setName('AnkiConnect URL')
@@ -32,8 +32,18 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        new Setting(containerEl)
+            .setName('Automatically create')
+            .setDesc('If true, automatically creates required Anki decks and note types when syncing. Otherwise, decks and notes must be created manually or using the buttons to the right of the settings below.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.createIfNotFound)
+                .onChange(async (value) => {
+                    this.plugin.settings.createIfNotFound = value;
+                    await this.plugin.saveSettings();
+                }));
                 
         // MAIN SETTING GROUP FOR DECKS
+        containerEl.createEl('h2', { text: 'Deck specific settings' });
         const ankiConnectionGroup = containerEl.createDiv({ cls: 'settings-group' });
         new Setting(ankiConnectionGroup)
             .setName('Anki deck name')

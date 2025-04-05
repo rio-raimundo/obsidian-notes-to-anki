@@ -2,7 +2,7 @@
 export interface AnkiSyncSettings {
     ankiConnectUrl: string;
     ankiDeckName: string;
-    createDeckIfNotFound: boolean;
+    createIfNotFound: boolean;
     noteTypeName: string;
     obsidianGuidProperty: string; // Name of the property in Obsidian frontmatter
     propertyNames: string[];
@@ -13,8 +13,8 @@ export interface AnkiSyncSettings {
 
 export const DEFAULT_SETTINGS: AnkiSyncSettings = {
     ankiConnectUrl: 'http://127.0.0.1:8765',
+    createIfNotFound: true,
     ankiDeckName: 'Obsidian articles',
-    createDeckIfNotFound: true,
     noteTypeName: 'obsidian-articles', // Matches the Anki Note Type name
     obsidianGuidProperty: 'citation key', // Matches the Obsidian property name
     propertyNames: ['title', 'authors', 'journal', 'year'],
