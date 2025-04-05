@@ -15,8 +15,11 @@ export function addTagInputSetting(
     getTags: () => string[],
     setTags: (newTags: string[]) => Promise<void>) {
 
+    // Add tag .notes-to-anki-tags-input to setting 
+    setting.controlEl.classList.add('notes-to-anki-tags-input');
+
     // Create the main container div and input field
-    const containerEl = setting.controlEl.createDiv({ cls: 'tag-input-container' });
+    const containerEl = setting.controlEl.createDiv({ cls: 'multi-select-container' });
     const inputEl = createInputField();
 
     // Render the initial set of tags when the setting is displayed
@@ -42,6 +45,7 @@ export function addTagInputSetting(
         // 2. Create the inner content wrapper div
         const contentDiv = document.createElement('div');
         contentDiv.className = 'multi-select-pill-content'; // Set its class
+        contentDiv.textContent = tagText;
 
         // Create the remove button
         const removeButton = document.createElement('div');
@@ -55,12 +59,7 @@ export function addTagInputSetting(
             outerPillDiv.remove();
         });
 
-        // 3. Create the span for the actual text
-        const textSpan = document.createElement('span');
-        textSpan.textContent = tagText; // Put the text here
-
         // 4. Assemble the structure: span -> contentDiv -> outerPillDiv
-        contentDiv.appendChild(textSpan);
         outerPillDiv.appendChild(contentDiv);
         outerPillDiv.appendChild(removeButton);
 
@@ -111,7 +110,6 @@ export function addTagInputSetting(
                 if (lastTagElement && lastTagElement.classList.contains('multi-select-pill')) {
                     setTags(currentTags.slice(0, -1));
                     lastTagElement.remove();
-                    console.log(getTags())
                 }
                 else { console.warn("Backspace: Could not find the visual tag element to remove before the input field."); }
             }

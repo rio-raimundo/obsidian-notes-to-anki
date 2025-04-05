@@ -10,50 +10,7 @@
     --radius-m: 6px; /* Medium radius for container */
 }
 
-/* The actual input field and main container - styled minimally */
-.tag-input-container {
-    width: 100%;
-    display: flex; /* Align items inline */
-    flex-wrap: wrap; /* Allow tags to wrap to the next line */
-    justify-content: flex-start;
-    padding: 5px;
-    border: 1px solid var(--input-border-color);
-    border-radius: var(--radius-m);
-    background-color: var(--input-background-color);
-    min-height: 30px; /* Ensure it looks like an input box */
-    cursor: text; /* Indicate text input possibility */
-    gap: 4px; /* Space between tags and input */
-    box-sizing: border-box;
-    transition: border-color 0.2s ease; /* Smooth focus transition */
-}
-.tag-input-container:focus-within {
-   border-color: var(--interactive-accent-color);
-   box-shadow: 0 0 0 1px var(--interactive-accent-color); /* Focus ring */
-}
-
-
-
-
-
-.remove-tag-button:hover {
-    background-color: var(--tag-remove-hover-background);
-    opacity: 1;
-}
-
-/* The actual input field */
-.tag-input-container .tag-input-field {
-    border: none; /* --- CRUCIAL: Makes it 'invisible' --- */
-    outline: none; /* --- CRUCIAL: No default focus outline --- */
-    background: transparent; /* --- CRUCIAL: Blends in --- */
-    color: var(--input-text-color); /* Use standard text color */
-    font-family: inherit; /* Use the environment's font */
-    font-size: inherit; /* Use the environment's font size */
-    padding: 0;
-    height: 100%;
-    max-width: none !important;
-    flex-shrink: 0 !important;
-    overflow-x: visible !important;
-}
-.tag-input-container .tag-input-field:focus {
-    box-shadow: none;
+.notes-to-anki-tags-input .setting-item-control {
+    min-width: 60%;
+    max-width: 60%;
 }
