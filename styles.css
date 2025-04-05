@@ -11,3 +11,10 @@
 .setting-item.notes-to-anki-tags-input .multi-select-container .multi-select-pill {
     height: fit-content;
 }
+.setting-item.notes-to-anki-tags-input .multi-select-container .multi-select-pill .multi-select-pill-content {
+    padding-bottom: 2px;
+}
+
+.setting-item.notes-to-anki-tags-input .multi-select-container .multi-select-pill:focus:after {
+    box-shadow: none;
+}

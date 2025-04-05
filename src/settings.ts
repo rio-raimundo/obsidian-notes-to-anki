@@ -120,7 +120,8 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                 .setDesc('Identifiers of callouts (e.g. "summary" if [!summary]) to store as Anki fields.')
                 .then((setting) => { addTagInputSetting(
                     setting,
-                    createSettingAccessor(this.plugin, 'callouts')
+                    createSettingAccessor(this.plugin, 'callouts'),
+                    (tagText: string) => `[!${tagText}]`
                 ); });
 
             new Setting(containerEl)

@@ -33,7 +33,8 @@ export function createSettingAccessor<K extends keyof AnkiSyncSettings>(
  */
 export function addTagInputSetting(
     setting: Setting,
-    accessor: SettingGetSet<string[]>
+    accessor: SettingGetSet<string[]>,
+    textRenderer?: (tagText: string) => string
 ): Setting {
     // Extract from accessor
     const [getTags, setTags] = accessor;
@@ -68,7 +69,8 @@ export function addTagInputSetting(
         // 2. Create the inner content wrapper div
         const contentDiv = document.createElement('div');
         contentDiv.className = 'multi-select-pill-content'; // Set its class
-        contentDiv.textContent = tagText;
+        contentDiv.dataset.trueValue = tagText; // Store the original value
+        contentDiv.textContent = textRenderer ? textRenderer(tagText) : tagText;
 
         // Create the remove button
         const removeButton = document.createElement('div');
