@@ -1,16 +1,13 @@
-:root {
-    --input-border-color: #ccc;
-    --input-background-color: #fff;
-    --input-text-color: #222;
-    --tag-background-color: #e0e0e0;
-    --tag-text-color: #333;
-    --tag-remove-hover-background: #d0d0d0;
-    --interactive-accent-color: #777; /* Example: Color for focus */
-    --radius-s: 4px; /* Small radius for tags */
-    --radius-m: 6px; /* Medium radius for container */
-}
-
 .notes-to-anki-tags-input .setting-item-control {
     min-width: 60%;
     max-width: 60%;
+}
+.setting-item.notes-to-anki-tags-input {
+    align-items: stretch;
+}
+.setting-item.notes-to-anki-tags-input .multi-select-container {
+    height: 100%;
+}
+.setting-item.notes-to-anki-tags-input .multi-select-container .multi-select-pill {
+    height: fit-content;
 }

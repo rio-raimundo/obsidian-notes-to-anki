@@ -1,4 +1,25 @@
 import { Setting, getIcon } from "obsidian";
+import AnkiSyncPlugin from "./main";
+import { AnkiSyncSettings } from "./settings";
+
+// Define custom getter setter behaviour for settings, which want to read / assign from a specific settings variable
+type SettingGetSet<T> = [() => T, (newValue: T) => Promise<void>];
+
+export function createSettingAccessor<K extends keyof AnkiSyncSettings>(
+    pluginInstance: AnkiSyncPlugin,
+    key: K  // Generic type
+): [() => AnkiSyncSettings[K], (newValue: AnkiSyncSettings[K]) => Promise<void>] {
+
+    // Getter: Simply returns the current value of the setting property
+    const getter = (): AnkiSyncSettings[K] => { return pluginInstance.settings[key]; };
+
+    // Setter: Updates the setting property and then saves all settings
+    const setter = async (updatedValue: AnkiSyncSettings[K]): Promise<void> => {
+        pluginInstance.settings[key] = updatedValue;
+        await pluginInstance.saveSettings();
+    };
+    return [getter, setter];
+}
 
 /**
  * Adds a tag input control to an existing Obsidian Setting instance.
@@ -12,11 +33,13 @@ import { Setting, getIcon } from "obsidian";
  */
 export function addTagInputSetting(
     setting: Setting,
-    getTags: () => string[],
-    setTags: (newTags: string[]) => Promise<void>) {
+    accessor: SettingGetSet<string[]>
+): Setting {
+    // Extract from accessor
+    const [getTags, setTags] = accessor;
 
-    // Add tag .notes-to-anki-tags-input to setting 
-    setting.controlEl.classList.add('notes-to-anki-tags-input');
+    // Add tag .notes-to-anki-tags-input to the setting container
+    setting.controlEl.parentElement?.classList.add('notes-to-anki-tags-input');
 
     // Create the main container div and input field
     const containerEl = setting.controlEl.createDiv({ cls: 'multi-select-container' });
