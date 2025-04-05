@@ -77,6 +77,7 @@ export default class AnkiSyncPlugin extends Plugin {
             
             // Prepare Anki Note Fields
             const guid = frontmatter[this.settings.obsidianGuidProperty];
+            if (!guid) { throw new ReferenceError('GUID not found in frontmatter'); }
             const ankiFields: { [key: string]: string } = {};
             ankiFields[this.settings.obsidianGuidProperty] = guid;
 
@@ -132,6 +133,7 @@ export default class AnkiSyncPlugin extends Plugin {
             }
 
         } catch (error) {
+            if (error instanceof ReferenceError) { throw error; }
             console.error('Error syncing note to Anki:', error);
             logWithTag(`Error syncing "${file.basename}" to Anki. Check console (Ctrl+Shift+I) and ensure AnkiConnect is running.`);
         }
@@ -172,8 +174,10 @@ export default class AnkiSyncPlugin extends Plugin {
             try {
                 await this.syncNoteToAnki(file) ? createCounter++ : updateCounter++;
             } catch (error) {
-                failCounter++;
-                logWithTag(`Error syncing file: ${file.name}. Check console.`);
+                if (!(error instanceof ReferenceError)) {
+                    failCounter++;
+                    logWithTag(`Error syncing file: ${file.name}. Check console.`);
+                }
             }
         }
         const text = `Sync complete.${createCounter > 0 ? ` Created ${createCounter} notes.` : ''}${updateCounter > 0 ? ` Updated ${updateCounter} notes.` : ''}${failCounter > 0 ? ` Failed to sync ${failCounter} notes.` : ''}`;

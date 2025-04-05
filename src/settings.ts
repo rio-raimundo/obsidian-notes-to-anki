@@ -125,7 +125,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 
             new Setting(containerEl)
             .setName('Tags to include')
-            .setDesc('Tags which should be included when generating notes.')
+            .setDesc('Tags which should be included when syncing via tags. Leave blank to sync only notes with a GUID property.')
             .then((setting) => { addTagInputSetting(
                 setting,
                 createSettingAccessor(this.plugin, 'tagsToInclude')
