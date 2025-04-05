@@ -1,8 +1,59 @@
-/*
+:root {
+    --input-border-color: #ccc;
+    --input-background-color: #fff;
+    --input-text-color: #222;
+    --tag-background-color: #e0e0e0;
+    --tag-text-color: #333;
+    --tag-remove-hover-background: #d0d0d0;
+    --interactive-accent-color: #777; /* Example: Color for focus */
+    --radius-s: 4px; /* Small radius for tags */
+    --radius-m: 6px; /* Medium radius for container */
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+/* The actual input field and main container - styled minimally */
+.tag-input-container {
+    width: 100%;
+    display: flex; /* Align items inline */
+    flex-wrap: wrap; /* Allow tags to wrap to the next line */
+    justify-content: flex-start;
+    padding: 5px;
+    border: 1px solid var(--input-border-color);
+    border-radius: var(--radius-m);
+    background-color: var(--input-background-color);
+    min-height: 30px; /* Ensure it looks like an input box */
+    cursor: text; /* Indicate text input possibility */
+    gap: 4px; /* Space between tags and input */
+    box-sizing: border-box;
+    transition: border-color 0.2s ease; /* Smooth focus transition */
+}
+.tag-input-container:focus-within {
+   border-color: var(--interactive-accent-color);
+   box-shadow: 0 0 0 1px var(--interactive-accent-color); /* Focus ring */
+}
 
-If your plugin does not need CSS, delete this file.
 
-*/
+
+
+
+.remove-tag-button:hover {
+    background-color: var(--tag-remove-hover-background);
+    opacity: 1;
+}
+
+/* The actual input field */
+.tag-input-container .tag-input-field {
+    border: none; /* --- CRUCIAL: Makes it 'invisible' --- */
+    outline: none; /* --- CRUCIAL: No default focus outline --- */
+    background: transparent; /* --- CRUCIAL: Blends in --- */
+    color: var(--input-text-color); /* Use standard text color */
+    font-family: inherit; /* Use the environment's font */
+    font-size: inherit; /* Use the environment's font size */
+    padding: 0;
+    height: 100%;
+    max-width: none !important;
+    flex-shrink: 0 !important;
+    overflow-x: visible !important;
+}
+.tag-input-container .tag-input-field:focus {
+    box-shadow: none;
+}

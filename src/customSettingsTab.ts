@@ -1,93 +1,100 @@
+import { Setting, getIcon } from "obsidian";
+
 /**
- * Creates an enhanced tag input component within a specified container element.
+ * Adds a tag input control to an existing Obsidian Setting instance.
+ * Assumes CSS for '.tag-input-container', '.tag-chip', '.remove-tag-button',
+ * and '.tag-input-field' is defined elsewhere (similar to previous examples).
  *
- * @param containerEl The HTMLElement to build the tag input within (e.g., setting.controlEl).
- * @param plugin The plugin instance (used for accessing/saving settings).
- * @param settingsKey The key in `plugin.settings` that holds the array of tag strings.
- * @param placeholderText Optional placeholder text for the input field (defaults to 'Add tag...').
+ * @param {import('obsidian').Setting} setting - The Obsidian Setting instance to modify.
+ * @param {function(): string[]} getTags - Function to retrieve the current array of tag strings.
+ * @param {function(string[]): void} setTags - Function to update the array of tags. Should handle saving/persistence.
+ * @returns {import('obsidian').Setting} - Returns the same Setting instance for chaining.
  */
-export function createTagInputComponent(
-    containerEl: HTMLElement,
-    getTags: () => string[] | undefined | null,
-    setTags: (newTags: string[]) => Promise<void>,
-    placeholderText = 'Add tag...'
-) {
-    // --- Basic Structure ---
-    containerEl.addClass('enhanced-tag-input-container'); // Main container class
+export function addTagInputSetting(
+    setting: Setting,
+    getTags: () => string[],
+    setTags: (newTags: string[]) => Promise<void>) {
 
-    // Div to hold the list of tags
-    const tagListEl = containerEl.createDiv({ cls: 'tag-list' });
+    // Create the main container div and input field
+    const containerEl = setting.controlEl.createDiv({ cls: 'tag-input-container' });
+    const inputEl = createEditableDiv(containerEl, 'multi-select-input');
 
-    // Input field for adding new tags (placed logically after tags)
-    const inputEl = containerEl.createEl('input', {
-        type: 'text',
-        placeholder: placeholderText,
-    });
-    inputEl.addClass('tag-add-input');
-
-    // --- Helper function to render tags ---
-    const renderTags = () => {
-        tagListEl.empty(); // Clear existing tags before re-rendering
-
-        // Ensure the setting exists and is an array
-        const tags: string[] = getTags() ?? [];
-        tags.forEach((tagText, index) => {
-            const tagItemEl = tagListEl.createDiv({ cls: 'tag-item' });
-
-            // Using data-attribute similar to Obsidian's properties for styling consistency
-            tagItemEl.dataset.tagName = tagText; // Store the tag name if needed
-
-            const tagInnerEl = tagItemEl.createSpan({ cls: 'tag-item-inner' });
-            tagInnerEl.setText(tagText);
-
-            const removeBtn = tagItemEl.createSpan({ cls: 'tag-remove-button' });
-            removeBtn.innerHTML = '×'; // Use HTML entity for 'x'
-
-            removeBtn.addEventListener('click', async () => {
-                const currentTags = (getTags() ?? []).splice(index, 1);
-                await setTags(currentTags);
-                renderTags(); // Re-render the tags UI
-                inputEl.focus(); // Keep focus on input after removal
-            });
-        });
-
-        // Ensure input is always visually after the tags (even if containerEl structure changes)
-        containerEl.appendChild(inputEl);
-         // Optional: Auto-focus could be annoying if there are many settings
-        // inputEl.focus();
-    };
-
-    // --- Event Listener for Adding Tags ---
-    inputEl.addEventListener('keydown', async (event) => {
-        if (event.key === 'Enter') {
-            event.preventDefault(); // Prevent form submission if applicable
-            const newTagText = inputEl.value.trim();
-            await addTags(newTagText);
+    // Create click listener on the container to focus the input when clicked
+    containerEl.addEventListener('click', (event) => {
+        if (event.target === containerEl) {
+            inputEl.focus();
         }
     });
 
-    async function addTags(newTagText: string) {
-        if (newTagText) { // Only add if not empty
-            const currentTags = getTags() ?? [];
-            // Optional: Prevent duplicates
-            if (!currentTags.includes(newTagText)) {
-                await setTags([...currentTags, newTagText]);
-                inputEl.value = ''; // Clear the input
-                renderTags(); // Re-render
-            } else {
-                // Optional: Add a visual cue that the tag already exists
-                inputEl.addClass('input-error');
-                setTimeout(() => inputEl.removeClass('input-error'), 1000);
+    // Listen for keydown events (specifically 'Enter') on the input field
+    inputEl.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Prevent default 'Enter' behavior (e.g., form submission)
+            const newTag = (inputEl.textContent ?? '').trim(); // Get and clean the input value
+
+            if (newTag) { // Proceed only if the input is not empty
+                const currentTags = getTags();
+                if (!currentTags.includes(newTag)) {
+                    // Add the new tag to the existing list
+                    setTags([...currentTags, newTag]);
+                    addTagChip(newTag);
+                }
+
+                // Clear the input field and focus back
+                inputEl.textContent = ''; // Clear the input field
+                inputEl.focus();
             }
         }
-    }
-
-    // Optional: Add tag on blur (losing focus)
-    inputEl.addEventListener('blur', async () => {
-        const newTagText = inputEl.value.trim();
-        await addTags(newTagText);
     });
 
-    // --- Initial Render ---
-    renderTags();
+    // Render the initial set of tags when the setting is displayed
+    const initialTags = getTags();
+    initialTags.forEach(tagText => {
+        addTagChip(tagText); // Use the function to add each initial tag
+    });
+    // Ensure input is visually last (though insertBefore handles placement correctly)
+    containerEl.appendChild(inputEl);
+    return setting;
+
+    // --- Function to create and add a single tag UI element ---
+    /**
+     * Creates the DOM elements for a single tag and inserts it before the input field.
+     * @param {string} tagText - The text content of the tag to add.
+     */
+    function addTagChip(tagText: string) {
+        // 1. Create the outermost container div
+        const outerPillDiv = document.createElement('div');
+        outerPillDiv.className = 'multi-select-pill'; // Set the class
+        outerPillDiv.setAttribute('tabindex', '0');  // Add tabindex for focusability like in the image
+
+        // 2. Create the inner content wrapper div
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'multi-select-pill-content'; // Set its class
+
+        // Create the remove button
+        const removeButton = document.createElement('div');
+        removeButton.className = 'multi-select-pill-remove-button'
+        removeButton.appendChild(getIcon('x') ?? document.createElement('span'));
+
+        // 3. Create the span for the actual text
+        const textSpan = document.createElement('span');
+        textSpan.textContent = tagText; // Put the text here
+
+        // 4. Assemble the structure: span -> contentDiv -> outerPillDiv
+        contentDiv.appendChild(textSpan);
+        outerPillDiv.appendChild(contentDiv);
+        outerPillDiv.appendChild(removeButton);
+
+        // Insert the new tag element right before the input field
+        containerEl.insertBefore(outerPillDiv, inputEl);
+    }
+}
+
+function createEditableDiv(containerEl: HTMLElement, className = 'editable-tag-input') {
+    const editableEl = containerEl.createEl('span', {
+        cls: className
+    });
+    editableEl.contentEditable = 'true'; // Make it editable
+    editableEl.role = 'textbox';
+    return editableEl;
 }

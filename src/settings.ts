@@ -1,6 +1,6 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import { AnkiRequests } from "./ankiRequests";
-import { createTagInputComponent } from "./customSettingsTab";
+import { createTagInputComponent, addTagInputSetting } from "./customSettingsTab";
 
 import AnkiSyncPlugin from "./main";
 
@@ -178,18 +178,29 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
             .setName('Callouts to copy')
             .setDesc('Identifiers of callouts (e.g. "summary" if [!summary]) to store as Anki fields.')
             .then((setting) => {
-                setting.controlEl.empty(); // Clear potential default controls
-
-                createTagInputComponent(
-                    setting.controlEl,
+                addTagInputSetting(
+                    setting,
                     () => this.plugin.settings.callouts,  // getter to access property
-                    async (newTags) => {  // setter to update property
+                    async (newTags) => {
                         this.plugin.settings.callouts = newTags;
                         await this.plugin.saveSettings();
-                    },  
-                    'Add callout name.' //
-                );
-            });
+                    }
+                )
+            })
+
+            // .then((setting) => {
+            //     setting.controlEl.empty(); // Clear potential default controls
+
+            //     createTagInputComponent(
+            //         setting.controlEl,
+            //         () => this.plugin.settings.callouts,  // getter to access property
+            //         async (newTags) => {  // setter to update property
+            //             this.plugin.settings.callouts = newTags;
+            //             await this.plugin.saveSettings();
+            //         },  
+            //         'Add callout name.' //
+            //     );
+            // });
 
             new Setting(containerEl)
             .setName('Tags to include')
