@@ -56,7 +56,10 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        new Setting(containerEl)
+                
+        // MAIN SETTING GROUP FOR DECKS
+        const ankiConnectionGroup = containerEl.createDiv({ cls: 'settings-group' });
+        new Setting(ankiConnectionGroup)
             .setName('Anki deck name')
             .setDesc('The name of the anki deck to add notes to.')
             .addText(text => text
@@ -66,8 +69,8 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                     this.plugin.settings.ankiDeckName = value || DEFAULT_SETTINGS.ankiDeckName;
                     await this.plugin.saveSettings();
                 }));
-		
-		new Setting(containerEl)
+
+		new Setting(ankiConnectionGroup)
             .setName('Create deck if not found')
             .setDesc('If true, will automatically create a deck if it does not exist.')
             .addToggle(text => text
@@ -84,7 +87,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
 				}));
 
 
-        new Setting(containerEl)
+        new Setting(ankiConnectionGroup)
             .setName('Anki Note Type Name')
             .setDesc('The name to use for the Anki note type, created automatically by this plugin.')
             .addText(text => text
@@ -95,7 +98,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 			
-		new Setting(containerEl)
+		new Setting(ankiConnectionGroup)
             .setName('Obsidian GUID Property Name')
             .setDesc('The name of the property in Obsidian frontmatter used to store the Anki GUID.')
             .addText(text => text
@@ -106,7 +109,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
             
-            new Setting(containerEl)
+            new Setting(ankiConnectionGroup)
             .setName('Properties to copy')
             .setDesc('Names of properties to store as Anki fields. Do not need to retype GUID.')
             .then((setting) => { addTagInputSetting(
@@ -115,7 +118,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
             ); });
 
             // Create setting wrapper for callout-related settings (including tag box)
-            new Setting(containerEl)
+            new Setting(ankiConnectionGroup)
                 .setName('Callouts to copy')
                 .setDesc('Identifiers of callouts (e.g. "summary" if [!summary]) to store as Anki fields.')
                 .then((setting) => { addTagInputSetting(
@@ -124,7 +127,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                     (tagText: string) => `[!${tagText}]`
                 ); });
 
-            new Setting(containerEl)
+            new Setting(ankiConnectionGroup)
             .setName('Tags to include')
             .setDesc('Tags which should be included when syncing via tags. Leave blank to sync only notes with a GUID property.')
             .then((setting) => { addTagInputSetting(
@@ -132,7 +135,7 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                 createSettingAccessor(this.plugin, 'tagsToInclude')
             ); });
 
-            new Setting(containerEl)
+            new Setting(ankiConnectionGroup)
             .setName('Tags to exclude')
             .setDesc('Tags which should be excluded when syncing notes.')
             .then((setting) => { addTagInputSetting(

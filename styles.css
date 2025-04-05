@@ -18,3 +18,12 @@
 .setting-item.notes-to-anki-tags-input .multi-select-container .multi-select-pill:focus:after {
     box-shadow: none;
 }
+
+
+/* STYLES FOR THE SETTINGS GROUPS */
+.settings-group {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 5px;
+    padding: 5px 5px 0px 5px;
+    margin-top: 10px;
+}
