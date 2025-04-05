@@ -1,6 +1,6 @@
 import { Setting, getIcon } from "obsidian";
 import AnkiSyncPlugin from "./main";
-import { AnkiSyncSettings } from "./settings";
+import { AnkiSyncSettings } from "./interfaces";
 
 // Define custom getter setter behaviour for settings, which want to read / assign from a specific settings variable
 type SettingGetSet<T> = [() => T, (newValue: T) => Promise<void>];

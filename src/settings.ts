@@ -1,33 +1,9 @@
 import { PluginSettingTab, Setting } from "obsidian";
 import { AnkiRequests } from "./ankiRequests";
 import { addTagInputSetting, createSettingAccessor } from "./customSettingsTab";
+import { DEFAULT_SETTINGS } from "./interfaces";
 
 import AnkiSyncPlugin from "./main";
-
-// Interface for plugin settings
-export interface AnkiSyncSettings {
-	ankiConnectUrl: string;
-	ankiDeckName: string;
-	createDeckIfNotFound: boolean;
-	noteTypeName: string;
-	obsidianGuidProperty: string; // Name of the property in Obsidian frontmatter
-    propertyNames: string[];
-    callouts: string[];
-    tagsToInclude: string[];
-    tagsToExclude: string[];
-}
-
-export const DEFAULT_SETTINGS: AnkiSyncSettings = {
-	ankiConnectUrl: 'http://127.0.0.1:8765',
-	ankiDeckName: 'Obsidian articles',
-	createDeckIfNotFound: true,
-	noteTypeName: 'obsidian-articles', // Matches the Anki Note Type name
-	obsidianGuidProperty: 'citation key', // Matches the Obsidian property name
-    propertyNames: ['title', 'authors', 'journal', 'year'],
-    callouts: ['summary'],
-    tagsToInclude: [],
-    tagsToExclude: []
-}
 
 // --- Settings Tab ---
 export class AnkiSyncSettingTab extends PluginSettingTab {
@@ -68,23 +44,13 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.ankiDeckName = value || DEFAULT_SETTINGS.ankiDeckName;
                     await this.plugin.saveSettings();
+                }))
+            .addExtraButton(button => button
+                .setIcon('refresh-cw')
+                .setTooltip('Automatically generate the Anki deck.')
+                .onClick(async () => {
+                    await this.requests.processAnkiDeck({shouldCreate: true, logAsNotice: true});
                 }));
-
-		new Setting(ankiConnectionGroup)
-            .setName('Create deck if not found')
-            .setDesc('If true, will automatically create a deck if it does not exist.')
-            .addToggle(text => text
-				.setValue(this.plugin.settings.createDeckIfNotFound)
-				.onChange(async (value) => {
-					this.plugin.settings.createDeckIfNotFound = value;
-					await this.plugin.saveSettings();
-					}))
-			.addExtraButton(button => button
-				.setIcon('refresh-cw')
-				.setTooltip('Attempt to find deck again.')
-				.onClick(async () => {
-					await this.requests.findAnkiDeck(this.plugin.settings.ankiDeckName, this.plugin.settings.createDeckIfNotFound);
-				}));
 
 
         new Setting(ankiConnectionGroup)
@@ -96,6 +62,12 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.noteTypeName = value || DEFAULT_SETTINGS.noteTypeName;
                     await this.plugin.saveSettings();
+                }))
+            .addExtraButton(button => button
+                .setIcon('refresh-cw')
+                .setTooltip('Automatically generate the Anki note type (after fields have been set).')
+                .onClick(async () => {
+                    await this.requests.processAnkiModel({shouldCreate: true, logAsNotice: true});
                 }));
 			
 		new Setting(ankiConnectionGroup)

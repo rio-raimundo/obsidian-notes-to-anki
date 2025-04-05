@@ -1,5 +1,6 @@
 import { MarkdownView, Plugin, TFile } from 'obsidian';
-import { AnkiSyncSettings, DEFAULT_SETTINGS, AnkiSyncSettingTab } from './settings';
+import {AnkiSyncSettings, DEFAULT_SETTINGS } from './interfaces';
+import { AnkiSyncSettingTab } from './settings';
 import { logWithTag } from './auxilliary';
 import { MarkdownRenderer } from 'obsidian'; // Use Obsidian's renderer
 import { AnkiRequests } from './ankiRequests';
@@ -40,8 +41,8 @@ export default class AnkiSyncPlugin extends Plugin {
                 (async () => {
                     try {
                         await this.requests.checkAnkiConnect();
-                        await this.requests.ensureAnkiNoteTypeModel();
-                        await this.requests.findAnkiDeck(this.settings.ankiDeckName, true);
+                        await this.requests.processAnkiModel({shouldCreate: this.settings.createDeckIfNotFound, logAsNotice: false});
+                        await this.requests.processAnkiDeck({shouldCreate: this.settings.createDeckIfNotFound, logAsNotice: false});
                         await this.syncNoteToAnki(file);
                     } catch (error) {
                         console.error(error);
@@ -56,8 +57,8 @@ export default class AnkiSyncPlugin extends Plugin {
             callback: async () => {
                 try {
                     await this.requests.checkAnkiConnect();
-                    await this.requests.ensureAnkiNoteTypeModel();
-                    await this.requests.findAnkiDeck(this.settings.ankiDeckName, true);
+                    await this.requests.processAnkiModel({shouldCreate: this.settings.createDeckIfNotFound, logAsNotice: false});
+                    await this.requests.processAnkiDeck({shouldCreate: this.settings.createDeckIfNotFound, logAsNotice: false});
                     await this.syncNotesByTags();
                 } catch (error) {
                     console.error(error);
