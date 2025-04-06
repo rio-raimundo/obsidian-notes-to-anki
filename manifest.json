@@ -1,7 +1,7 @@
 {
 	"id": "notes-to-anki",
 	"name": "Notes to Anki",
-	"version": "0.3.0",
+	"version": "0.1.0",
 	"minAppVersion": "0.15.0",
 	"description": "Convert notes to Anki flashcards",
 	"author": "rio-raimundo",
