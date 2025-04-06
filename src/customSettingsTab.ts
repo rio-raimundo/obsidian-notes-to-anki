@@ -149,6 +149,6 @@ function createEditableDiv(containerEl: HTMLElement, className = 'editable-tag-i
         cls: className
     });
     editableEl.contentEditable = 'true'; // Make it editable
-    editableEl.role = 'textbox';
+    editableEl.setAttribute('role', 'textbox');
     return editableEl;
 }
